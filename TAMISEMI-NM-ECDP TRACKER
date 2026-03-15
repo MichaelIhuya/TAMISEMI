@@ -1,0 +1,2135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TAMISEMI – NMECD Report Submission Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --green:#16a34a; --green-mid:#22c55e; --green-light:#dcfce7;
+  --red:#dc2626; --red-light:#fef2f2;
+  --amber:#d97706; --amber-light:#fef3c7;
+  --blue:#1d4ed8; --accent:#38bdf8;
+  --bg:#0c1525; --surface:#162032; --surface2:#1d2d42;
+  --border:#243348; --text:#f0f6ff; --muted:#7a9bb5;
+  --q1:#6366f1; --q2:#0ea5e9; --q3:#f59e0b; --q4:#10b981;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+/* TOPBAR */
+.topbar{
+  background:linear-gradient(135deg,#0c1525,#162d45,#0c1525);
+  border-bottom:1px solid var(--border);
+  padding:14px 28px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:200;
+  box-shadow:0 2px 20px rgba(0,0,0,0.4);
+}
+.logo-wrap{display:flex;align-items:center;gap:12px}
+.logo{width:38px;height:38px;background:linear-gradient(135deg,#16a34a,#0d9488);
+  border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.brand h1{font-size:14px;font-weight:600;line-height:1.2}
+.brand p{font-size:11px;color:var(--muted)}
+.topbar-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.live-badge{display:flex;align-items:center;gap:5px;font-size:11px;color:#4ade80;
+  background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);
+  padding:4px 10px;border-radius:20px}
+.live-dot{width:7px;height:7px;border-radius:50%;background:#4ade80;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.8)}}
+.btn{display:inline-flex;align-items:center;gap:5px;font-family:'DM Sans',sans-serif;
+  font-size:12px;font-weight:500;padding:7px 14px;border-radius:8px;border:none;
+  cursor:pointer;transition:all 0.15s}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--muted)}
+.btn-outline:hover{border-color:var(--accent);color:var(--accent)}
+.btn-green{background:var(--green);color:white}
+.btn-green:hover{background:#15803d}
+.btn-blue{background:#1e40af;color:white}
+.btn-blue:hover{background:#1d4ed8}
+#fileInput{display:none}
+
+/* QUARTER SELECTOR */
+.quarter-bar{
+  background:var(--surface);border-bottom:1px solid var(--border);
+  padding:10px 28px;display:flex;align-items:center;gap:16px;flex-wrap:wrap
+}
+.quarter-label{font-size:12px;color:var(--muted);font-weight:500;white-space:nowrap}
+.quarter-tabs{display:flex;gap:4px}
+.qtab{
+  padding:7px 18px;border-radius:8px;font-size:12px;font-weight:500;
+  border:1px solid var(--border);background:transparent;color:var(--muted);
+  cursor:pointer;transition:all 0.15s;font-family:'DM Sans',sans-serif
+}
+.qtab:hover{border-color:var(--muted);color:var(--text)}
+.qtab.active-q1{background:rgba(99,102,241,0.15);border-color:#6366f1;color:#a5b4fc}
+.qtab.active-q2{background:rgba(14,165,233,0.15);border-color:#0ea5e9;color:#7dd3fc}
+.qtab.active-q3{background:rgba(245,158,11,0.15);border-color:#f59e0b;color:#fcd34d}
+.qtab.active-q4{background:rgba(16,185,129,0.15);border-color:#10b981;color:#6ee7b7}
+.kobo-status{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12px}
+.kobo-badge{padding:5px 12px;border-radius:20px;font-size:11px;font-weight:500;
+  display:flex;align-items:center;gap:5px}
+.kobo-ok{background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);color:#4ade80}
+.kobo-err{background:rgba(220,38,38,0.1);border:1px solid rgba(220,38,38,0.25);color:#f87171}
+.kobo-loading{background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);color:#7dd3fc}
+.spin{animation:spin 1s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* STATS */
+.stats-row{
+  display:grid;grid-template-columns:repeat(4,1fr);
+  gap:1px;background:var(--border);
+  border-bottom:1px solid var(--border)
+}
+.stat{background:var(--surface);padding:18px 24px}
+.stat-lbl{font-size:10px;text-transform:uppercase;letter-spacing:0.09em;color:var(--muted);margin-bottom:5px}
+.stat-val{font-size:30px;font-weight:700;font-family:'DM Mono',monospace;line-height:1}
+.stat-sub{font-size:11px;color:var(--muted);margin-top:3px}
+.s-blue .stat-val{color:var(--accent)}
+.s-green .stat-val{color:#4ade80}
+.s-red .stat-val{color:#f87171}
+.s-amber .stat-val{color:#fbbf24}
+
+/* MAIN GRID */
+.main{display:grid;grid-template-columns:1fr 460px;min-height:calc(100vh - 162px)}
+
+/* LEFT */
+.left{padding:20px;overflow-y:auto;border-right:1px solid var(--border)}
+.section-head{
+  font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;
+  color:var(--muted);margin:0 0 14px;display:flex;align-items:center;gap:8px
+}
+.section-head::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* PROGRESS RING */
+.overview-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:14px;
+  padding:20px;display:flex;align-items:center;gap:24px;margin-bottom:18px
+}
+.ring-wrap{position:relative;width:92px;height:92px;flex-shrink:0}
+.ring-wrap svg{transform:rotate(-90deg)}
+.ring-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center}
+.ring-pct{font-size:20px;font-weight:700;font-family:'DM Mono',monospace;color:#4ade80}
+.ring-sub{font-size:9px;color:var(--muted)}
+.overview-info h3{font-size:15px;font-weight:600;margin-bottom:4px}
+.overview-info p{font-size:12px;color:var(--muted);line-height:1.6}
+.spark{display:flex;gap:2px;margin-top:10px}
+.spark-bar{height:5px;border-radius:3px;flex:1;min-width:4px}
+
+/* TABLE */
+.table-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:18px}
+.table-controls{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap}
+.search-in{
+  flex:1;min-width:120px;background:var(--bg);border:1px solid var(--border);
+  color:var(--text);font-family:'DM Sans',sans-serif;font-size:12px;
+  padding:7px 11px;border-radius:7px;outline:none
+}
+.search-in:focus{border-color:var(--accent)}
+.filt{
+  background:var(--bg);border:1px solid var(--border);color:var(--muted);
+  font-family:'DM Sans',sans-serif;font-size:11px;padding:7px 12px;border-radius:7px;
+  cursor:pointer;transition:all 0.15s
+}
+.filt.on{background:var(--green);border-color:var(--green);color:white}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{
+  padding:9px 14px;text-align:left;font-size:10px;font-weight:600;
+  text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);
+  background:var(--surface2);border-bottom:1px solid var(--border)
+}
+tbody tr{border-bottom:1px solid rgba(36,51,72,0.6);cursor:pointer;transition:background 0.12s}
+tbody tr:hover{background:var(--surface2)}
+tbody tr.selected{background:rgba(56,189,248,0.08);border-left:3px solid var(--accent)}
+tbody td{padding:9px 14px}
+.prog-wrap{display:flex;align-items:center;gap:7px}
+.prog-bg{flex:1;height:4px;background:var(--bg);border-radius:2px;overflow:hidden}
+.prog-fill{height:100%;border-radius:2px;transition:width 0.5s}
+.pct-txt{font-size:11px;font-family:'DM Mono',monospace;color:var(--muted);min-width:34px;text-align:right}
+.badge{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:12px;font-size:10px;font-weight:500}
+.b-green{background:rgba(22,163,74,0.15);color:#4ade80}
+.b-red{background:rgba(220,38,38,0.15);color:#f87171}
+.b-amber{background:rgba(217,119,6,0.15);color:#fbbf24}
+
+/* COUNCILS */
+.council-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.council-hdr{
+  padding:12px 16px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:600
+}
+.council-grid{display:grid;grid-template-columns:1fr 1fr;max-height:280px;overflow-y:auto}
+.ci{
+  padding:9px 12px;display:flex;align-items:center;gap:8px;font-size:11px;
+  border-bottom:1px solid rgba(36,51,72,0.5);transition:background 0.12s
+}
+.ci:hover{background:var(--surface2)}
+.ci-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.ci-name{flex:1;line-height:1.3}
+.ci-type{font-size:10px;color:var(--muted);background:var(--bg);padding:1px 5px;border-radius:4px;margin-left:auto}
+
+/* RIGHT / MAP */
+.right{overflow-y:auto;background:var(--bg)}
+.map-hdr{padding:16px 20px 12px;border-bottom:1px solid var(--border)}
+.map-hdr h2{font-size:13px;font-weight:600;margin-bottom:3px}
+.map-hdr p{font-size:11px;color:var(--muted)}
+.map-legend{display:flex;gap:14px;margin-top:10px;flex-wrap:wrap}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)}
+.leg-circle{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+.map-area{padding:10px 14px 16px;position:relative}
+#tzMap{width:100%;display:block;cursor:default}
+.tooltip{
+  position:fixed;background:var(--surface2);border:1px solid var(--border);
+  border-radius:10px;padding:10px 14px;font-size:12px;pointer-events:none;
+  z-index:999;min-width:170px;display:none;
+  box-shadow:0 8px 32px rgba(0,0,0,0.5)
+}
+.tt-region{font-size:14px;font-weight:600;margin-bottom:8px;color:var(--text)}
+.tt-row{display:flex;justify-content:space-between;gap:14px;margin-bottom:3px}
+.tt-lbl{color:var(--muted);font-size:11px}
+.tt-val{font-weight:600;font-family:'DM Mono',monospace;font-size:12px}
+.map-footer{padding:6px 14px 12px;text-align:right;font-size:10px;color:var(--muted);border-top:1px solid var(--border)}
+
+/* Kobo config panel */
+.kobo-panel{
+  background:var(--surface2);border:1px solid var(--border);border-radius:12px;
+  padding:14px;margin:0 28px 0;font-size:12px
+}
+.kobo-panel h3{font-size:12px;font-weight:600;margin-bottom:10px;color:var(--accent)}
+.kobo-inputs{display:flex;gap:8px;flex-wrap:wrap}
+.kobo-in{
+  flex:1;min-width:180px;background:var(--bg);border:1px solid var(--border);
+  color:var(--text);font-family:'DM Mono',monospace;font-size:11px;
+  padding:7px 10px;border-radius:7px;outline:none
+}
+.kobo-in:focus{border-color:var(--accent)}
+
+@media(max-width:1100px){
+  .main{grid-template-columns:1fr}
+  .stats-row{grid-template-columns:repeat(2,1fr)}
+  .right{border-top:1px solid var(--border)}
+}
+
+/* =================== EMAILJS MODAL =================== */
+#ejsModal{position:fixed;inset:0;z-index:9998;background:rgba(6,14,26,0.88);display:none;align-items:center;justify-content:center;padding:20px}
+#ejsModal.show{display:flex}
+.ejs-card{background:#111d2e;border:1px solid #1e3a5c;border-radius:18px;width:100%;max-width:520px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.6)}
+.ejs-hdr{padding:18px 24px;border-bottom:1px solid #1e3a5c;background:#0a1e35;display:flex;align-items:center;justify-content:space-between}
+.ejs-hdr h2{font-size:15px;font-weight:600}
+.ejs-close{background:none;border:none;color:#7a9bb5;font-size:18px;cursor:pointer;padding:4px 8px;border-radius:6px}
+.ejs-close:hover{color:#f87171}
+.ejs-body{padding:20px 24px 24px}
+.ejs-field{margin-bottom:14px}
+.ejs-field label{display:block;font-size:11px;font-weight:600;color:#7a9bb5;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.06em}
+.ejs-field input{width:100%;background:#0c1525;border:1px solid #243348;color:#f0f6ff;font-family:'DM Mono',monospace;font-size:12px;padding:9px 12px;border-radius:8px;outline:none}
+.ejs-field input:focus{border-color:#38bdf8}
+.ejs-field .hint{font-size:10px;color:#4a6a8a;margin-top:4px;line-height:1.5}
+.ejs-actions{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap}
+.ejs-btn{padding:9px 16px;border-radius:8px;font-size:12px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;border:none;transition:all 0.15s}
+.ejs-save{background:#16a34a;color:white}.ejs-save:hover{background:#15803d}
+.ejs-test{background:#1e40af;color:white}.ejs-test:hover{background:#1d4ed8}
+.ejs-cancel{background:transparent;border:1px solid #243348;color:#7a9bb5}.ejs-cancel:hover{border-color:#38bdf8;color:#38bdf8}
+.ejs-divider{border:none;border-top:1px solid #1e3a5c;margin:16px 0}
+.ejs-step{display:flex;gap:10px;margin-bottom:10px;font-size:12px;line-height:1.6;color:#7a9bb5}
+.ejs-step-num{width:20px;height:20px;border-radius:50%;background:#1e3a5c;color:#38bdf8;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+
+/* Admin tabs */
+.admin-tab{
+  flex:1;padding:12px 8px;font-size:12px;font-weight:500;
+  font-family:'DM Sans',sans-serif;background:transparent;
+  border:none;color:#7a9bb5;cursor:pointer;
+  border-bottom:2px solid transparent;transition:all 0.15s;
+}
+.admin-tab:hover{color:#f0f6ff;background:rgba(255,255,255,0.03)}
+.admin-tab.active{color:#38bdf8;border-bottom-color:#38bdf8;background:rgba(56,189,248,0.05)}
+.admin-tab-panel{display:block}
+
+/* Guide steps */
+.guide-step{display:flex;gap:12px;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid #1e3a5c}
+.guide-step:last-of-type{border-bottom:none}
+.guide-num{
+  width:26px;height:26px;border-radius:50%;flex-shrink:0;
+  background:linear-gradient(135deg,#1e40af,#0d9488);
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:700;color:white;margin-top:2px;
+}
+
+/* Admin toast */
+.admin-toast{margin:12px 20px 0;padding:10px 16px;border-radius:9px;font-size:13px;display:none}
+.admin-toast.ok{background:rgba(22,163,74,0.15);border:1px solid rgba(22,163,74,0.3);color:#4ade80}
+.admin-toast.warn{background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);color:#fbbf24}
+.admin-toast.err{background:rgba(220,38,38,0.12);border:1px solid rgba(220,38,38,0.25);color:#f87171}
+
+/* Admin stats row */
+.admin-stats{display:flex;gap:1px;background:#1e3a5c;border-radius:10px;overflow:hidden;margin-bottom:16px}
+.admin-stat{flex:1;background:#0a1e35;padding:10px;text-align:center}
+.admin-stat-val{display:block;font-size:22px;font-weight:700;font-family:'DM Mono',monospace}
+.admin-stat-lbl{display:block;font-size:10px;color:#7a9bb5;text-transform:uppercase;letter-spacing:0.06em;margin-top:2px}
+
+/* =================== AUTH OVERLAY =================== */
+#authOverlay{
+  position:fixed;inset:0;z-index:9999;
+  background:radial-gradient(ellipse at 40% 30%,#0d2137 0%,#060e1a 70%);
+  display:flex;align-items:center;justify-content:center;
+  padding:20px;
+}
+.auth-card{
+  background:#111d2e;border:1px solid #1e3a5c;border-radius:20px;
+  width:100%;max-width:440px;overflow:hidden;
+  box-shadow:0 30px 80px rgba(0,0,0,0.7);
+}
+.auth-header{
+  padding:28px 32px 20px;
+  background:linear-gradient(135deg,#0a1e35,#112944);
+  border-bottom:1px solid #1e3a5c;
+  text-align:center;
+}
+.auth-logo{
+  width:52px;height:52px;
+  background:linear-gradient(135deg,#16a34a,#0d9488);
+  border-radius:14px;margin:0 auto 14px;
+  display:flex;align-items:center;justify-content:center;font-size:22px;
+}
+.auth-header h2{font-size:17px;font-weight:600;margin-bottom:4px}
+.auth-header p{font-size:12px;color:#7a9bb5}
+.auth-tabs{display:flex;border-bottom:1px solid #1e3a5c}
+.auth-tab{
+  flex:1;padding:13px;text-align:center;font-size:13px;font-weight:500;
+  color:#7a9bb5;cursor:pointer;border:none;background:transparent;
+  border-bottom:2px solid transparent;transition:all 0.15s;
+  font-family:'DM Sans',sans-serif;
+}
+.auth-tab.active{color:#38bdf8;border-bottom-color:#38bdf8;background:rgba(56,189,248,0.05)}
+.auth-body{padding:24px 32px 28px}
+.auth-panel{display:none}
+.auth-panel.show{display:block}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:12px;font-weight:500;color:#7a9bb5;margin-bottom:6px}
+.field input,.field select{
+  width:100%;background:#0c1525;border:1px solid #243348;
+  color:#f0f6ff;font-family:'DM Sans',sans-serif;font-size:13px;
+  padding:10px 13px;border-radius:9px;outline:none;transition:border 0.15s;
+}
+.field input:focus,.field select:focus{border-color:#38bdf8}
+.field input::placeholder{color:#3d5a75}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.auth-btn{
+  width:100%;padding:12px;border-radius:10px;border:none;
+  font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;
+  cursor:pointer;transition:all 0.15s;margin-top:4px;
+}
+.auth-btn-primary{background:linear-gradient(135deg,#16a34a,#0d9488);color:white}
+.auth-btn-primary:hover{opacity:0.9;transform:translateY(-1px)}
+.auth-btn-primary:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+.auth-msg{
+  margin-top:12px;padding:10px 13px;border-radius:8px;
+  font-size:12px;text-align:center;display:none;
+}
+.auth-msg.ok{background:rgba(22,163,74,0.15);color:#4ade80;border:1px solid rgba(22,163,74,0.25)}
+.auth-msg.err{background:rgba(220,38,38,0.12);color:#f87171;border:1px solid rgba(220,38,38,0.25)}
+.auth-msg.info{background:rgba(56,189,248,0.1);color:#7dd3fc;border:1px solid rgba(56,189,248,0.25)}
+.divider{display:flex;align-items:center;gap:10px;margin:16px 0;color:#3d5a75;font-size:11px}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:#1e3a5c}
+.pw-wrap{position:relative}
+.pw-wrap input{padding-right:36px}
+.pw-eye{
+  position:absolute;right:10px;top:50%;transform:translateY(-50%);
+  background:none;border:none;color:#3d5a75;cursor:pointer;font-size:14px;padding:2px
+}
+.strength-bar{height:3px;border-radius:2px;margin-top:5px;transition:all 0.3s;background:#1e3a5c}
+.pending-msg{
+  text-align:center;padding:28px 24px;
+}
+.pending-icon{font-size:40px;margin-bottom:12px}
+.pending-msg h3{font-size:16px;font-weight:600;margin-bottom:8px}
+.pending-msg p{font-size:12px;color:#7a9bb5;line-height:1.7}
+
+/* =================== ADMIN PANEL =================== */
+#adminPanel{
+  position:fixed;inset:0;z-index:8888;
+  background:rgba(6,14,26,0.92);
+  display:none;align-items:center;justify-content:center;padding:20px;
+}
+#adminPanel.show{display:flex}
+.admin-card{
+  background:#111d2e;border:1px solid #1e3a5c;border-radius:18px;
+  width:100%;max-width:700px;max-height:85vh;overflow:hidden;
+  display:flex;flex-direction:column;
+  box-shadow:0 20px 60px rgba(0,0,0,0.6);
+}
+.admin-hdr{
+  padding:18px 24px;border-bottom:1px solid #1e3a5c;
+  display:flex;align-items:center;justify-content:space-between;
+  background:#0a1e35;
+}
+.admin-hdr h2{font-size:15px;font-weight:600}
+.admin-close{background:none;border:none;color:#7a9bb5;font-size:20px;cursor:pointer;padding:4px 8px;border-radius:6px}
+.admin-close:hover{color:#f87171;background:rgba(220,38,38,0.1)}
+.admin-body{overflow-y:auto;padding:20px;flex:1}
+.admin-section-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:#7a9bb5;margin:0 0 12px}
+.user-row{
+  background:#162032;border:1px solid #1e3a5c;border-radius:10px;
+  padding:12px 16px;margin-bottom:8px;
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+}
+.user-avatar{
+  width:36px;height:36px;border-radius:50%;
+  background:linear-gradient(135deg,#1e40af,#0d9488);
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:600;flex-shrink:0;
+}
+.user-info{flex:1;min-width:120px}
+.user-name{font-size:13px;font-weight:500}
+.user-email{font-size:11px;color:#7a9bb5}
+.user-meta{font-size:10px;color:#4a6a8a;margin-top:2px}
+.user-status{
+  padding:3px 9px;border-radius:12px;font-size:10px;font-weight:600;
+}
+.st-pending{background:rgba(245,158,11,0.15);color:#fbbf24}
+.st-approved{background:rgba(22,163,74,0.15);color:#4ade80}
+.st-rejected{background:rgba(220,38,38,0.15);color:#f87171}
+.st-admin{background:rgba(99,102,241,0.15);color:#a5b4fc}
+.user-actions{display:flex;gap:6px}
+.ua-btn{
+  padding:5px 11px;border-radius:7px;font-size:11px;font-weight:500;
+  border:1px solid;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.15s;
+}
+.ua-approve{border-color:#16a34a;color:#4ade80;background:transparent}
+.ua-approve:hover{background:rgba(22,163,74,0.15)}
+.ua-reject{border-color:#dc2626;color:#f87171;background:transparent}
+.ua-reject:hover{background:rgba(220,38,38,0.12)}
+.ua-delete{border-color:#374151;color:#9ca3af;background:transparent}
+.ua-delete:hover{background:rgba(55,65,81,0.3)}
+.empty-state{text-align:center;padding:28px;color:#4a6a8a;font-size:13px}
+
+/* =================== TOPBAR USER CHIP =================== */
+.user-chip{
+  display:flex;align-items:center;gap:7px;
+  background:rgba(255,255,255,0.05);border:1px solid #1e3a5c;
+  border-radius:20px;padding:5px 12px 5px 6px;cursor:pointer;
+  transition:border-color 0.15s;
+}
+.user-chip:hover{border-color:#38bdf8}
+.uc-avatar{
+  width:24px;height:24px;border-radius:50%;
+  background:linear-gradient(135deg,#16a34a,#0d9488);
+  display:flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:700;
+}
+.uc-name{font-size:12px;font-weight:500;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.uc-role{font-size:9px;color:#7a9bb5}
+</style>
+</head>
+<body>
+
+<!-- =================== AUTH OVERLAY =================== -->
+<div id="authOverlay">
+  <div class="auth-card">
+    <div class="auth-header">
+      <div class="auth-logo">🏛️</div>
+      <h2>TAMISEMI – NMECD Tracker</h2>
+      <p>ECD Report Submission System · Tanzania Mainland</p>
+    </div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tabLogin" onclick="switchTab('login')">Sign In</button>
+      <button class="auth-tab" id="tabRegister" onclick="switchTab('register')">Request Access</button>
+    </div>
+    <div class="auth-body">
+
+      <!-- LOGIN PANEL -->
+      <div class="auth-panel show" id="panelLogin">
+        <div class="field">
+          <label>Email Address</label>
+          <input type="email" id="loginEmail" placeholder="your@email.com" onkeydown="if(event.key==='Enter')doLogin()">
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <div class="pw-wrap">
+            <input type="password" id="loginPw" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+            <button class="pw-eye" onclick="togglePw('loginPw',this)">👁</button>
+          </div>
+        </div>
+        <button class="auth-btn auth-btn-primary" onclick="doLogin()" id="loginBtn">Sign In →</button>
+        <div class="auth-msg" id="loginMsg"></div>
+        <div class="divider">or</div>
+        <p style="text-align:center;font-size:12px;color:#7a9bb5">Don't have access? <a href="#" onclick="switchTab('register');return false" style="color:#38bdf8;text-decoration:none">Request an account</a></p>
+      </div>
+
+      <!-- REGISTER PANEL -->
+      <div class="auth-panel" id="panelRegister">
+        <div class="field-row">
+          <div class="field">
+            <label>First Name</label>
+            <input type="text" id="regFirst" placeholder="Juma">
+          </div>
+          <div class="field">
+            <label>Last Name</label>
+            <input type="text" id="regLast" placeholder="Mwangi">
+          </div>
+        </div>
+        <div class="field">
+          <label>Email Address</label>
+          <input type="email" id="regEmail" placeholder="your@organization.or.tz">
+        </div>
+        <div class="field">
+          <label>Organization / Role</label>
+          <input type="text" id="regOrg" placeholder="TAMISEMI Regional Office, Arusha">
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <div class="pw-wrap">
+            <input type="password" id="regPw" placeholder="Min. 8 characters" oninput="checkStrength(this.value)">
+            <button class="pw-eye" onclick="togglePw('regPw',this)">👁</button>
+          </div>
+          <div class="strength-bar" id="strengthBar"></div>
+        </div>
+        <div class="field">
+          <label>Confirm Password</label>
+          <input type="password" id="regPw2" placeholder="Repeat password">
+        </div>
+        <button class="auth-btn auth-btn-primary" onclick="doRegister()" id="registerBtn">Submit Access Request →</button>
+        <div class="auth-msg" id="registerMsg"></div>
+      </div>
+
+      <!-- PENDING PANEL -->
+      <div class="auth-panel" id="panelPending">
+        <div class="pending-msg">
+          <div class="pending-icon">⏳</div>
+          <h3>Access Pending Approval</h3>
+          <p>Your account request has been submitted.<br>
+          The system administrator (<strong style="color:#38bdf8"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="8ce5e4f9f5ede1e5efe4ede9e0ccf8e9efe8e9e2a2e3fea2f8f6">[email&#160;protected]</a></strong>) has been notified and will review your request.<br><br>
+          You will be able to sign in once your account is approved.</p>
+          <button class="auth-btn auth-btn-primary" style="margin-top:20px" onclick="switchTab('login')">Back to Sign In</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- =================== ADMIN PANEL =================== -->
+<div id="adminPanel">
+  <div class="admin-card">
+
+    <!-- Header -->
+    <div class="admin-hdr">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:18px">👑</span>
+        <div>
+          <div style="font-size:15px;font-weight:600">Admin Panel</div>
+          <div style="font-size:11px;color:#7a9bb5">TAMISEMI NMECD Dashboard</div>
+        </div>
+      </div>
+      <button class="admin-close" onclick="closeAdmin()">✕</button>
+    </div>
+
+    <!-- Tabs -->
+    <div style="display:flex;border-bottom:1px solid #1e3a5c;background:#0a1e35">
+      <button class="admin-tab active" id="atab-users"  onclick="switchAdminTab('users')" >👥 User Requests</button>
+      <button class="admin-tab"        id="atab-email"  onclick="switchAdminTab('email')" >📧 Email Setup</button>
+      <button class="admin-tab"        id="atab-guide"  onclick="switchAdminTab('guide')" >📖 How It Works</button>
+    </div>
+
+    <!-- Toast -->
+    <div id="adminToast" class="admin-toast"></div>
+
+    <!-- ── TAB: USERS ── -->
+    <div class="admin-body admin-tab-panel" id="apanel-users">
+      <div id="adminStats" class="admin-stats"></div>
+
+      <div class="admin-section-title">⏳ Pending Approval</div>
+      <div id="pendingUsers"></div>
+
+      <div style="margin:20px 0 12px;border-top:1px solid #1e3a5c;padding-top:20px">
+        <div class="admin-section-title">✅ Approved Users</div>
+      </div>
+      <div id="approvedUsers"></div>
+
+      <div style="margin:20px 0 12px;border-top:1px solid #1e3a5c;padding-top:20px">
+        <div class="admin-section-title">✕ Rejected</div>
+      </div>
+      <div id="rejectedUsers"></div>
+    </div>
+
+    <!-- ── TAB: EMAIL SETUP ── -->
+    <div class="admin-body admin-tab-panel" id="apanel-email" style="display:none">
+
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div>
+          <div style="font-size:14px;font-weight:600;margin-bottom:3px">EmailJS Notification Settings</div>
+          <div style="font-size:12px;color:#7a9bb5">Configure so you receive emails when users request access</div>
+        </div>
+        <span class="kobo-badge kobo-loading" id="ejsStatusBadge">⚠ Not configured</span>
+      </div>
+
+      <!-- Status box -->
+      <div id="ejsStatusBox" style="background:#0a1e35;border:1px solid #1e3a5c;border-radius:10px;padding:14px;margin-bottom:18px;font-size:12px;line-height:1.8;color:#7a9bb5">
+        Loading status…
+      </div>
+
+      <!-- How it works info -->
+      <div style="background:#0a1e35;border:1px solid #1e3a5c;border-radius:10px;padding:16px;margin-bottom:18px">
+        <div style="font-size:12px;font-weight:600;color:#38bdf8;margin-bottom:8px">ℹ How it works — one template only</div>
+        <div style="font-size:12px;color:#7a9bb5;line-height:1.9">
+          When a user registers, they receive an <strong style="color:#f0f6ff">activation link</strong> in their own email.<br>
+          Clicking it instantly activates their account. You only need <strong style="color:#f0f6ff">one template</strong>.
+        </div>
+      </div>
+
+      <div class="ejs-field">
+        <label>① Public Key</label>
+        <input id="ejsPublicKey" placeholder="e.g. aBcDeFgHiJkLmNoPqRsT" autocomplete="off">
+        <div class="hint">emailjs.com → Account → API Keys → <strong style="color:#f0f6ff">Public Key</strong></div>
+      </div>
+      <div class="ejs-field">
+        <label>② Service ID</label>
+        <input id="ejsServiceId" placeholder="e.g. service_abc12345">
+        <div class="hint">emailjs.com → Email Services → your Gmail/Outlook → <strong style="color:#f0f6ff">Service ID</strong></div>
+      </div>
+      <div class="ejs-field">
+        <label>③ Template ID — Activation Email</label>
+        <input id="ejsTmplActivation" placeholder="e.g. template_activate">
+        <div class="hint">emailjs.com → Email Templates → your template → <strong style="color:#f0f6ff">Template ID</strong></div>
+      </div>
+
+      <!-- Ready-to-copy template -->
+      <div style="background:#0a1e35;border:1px solid #1e3a5c;border-radius:10px;padding:14px;margin-bottom:18px">
+        <div style="font-size:11px;font-weight:600;color:#f0f6ff;margin-bottom:10px">📋 Set up your EmailJS template exactly like this:</div>
+        <div style="display:grid;grid-template-columns:90px 1fr;gap:6px 12px;font-size:11px;margin-bottom:12px">
+          <span style="color:#7a9bb5;line-height:26px">To Email:</span>
+          <code style="background:#162032;color:#38bdf8;padding:4px 9px;border-radius:5px;display:block">{{to_email}}</code>
+          <span style="color:#7a9bb5;line-height:26px">To Name:</span>
+          <code style="background:#162032;color:#38bdf8;padding:4px 9px;border-radius:5px;display:block">{{to_name}}</code>
+          <span style="color:#7a9bb5;line-height:26px">Subject:</span>
+          <code style="background:#162032;color:#38bdf8;padding:4px 9px;border-radius:5px;display:block">Activate Your TAMISEMI Dashboard Account</code>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <div style="font-size:11px;color:#7a9bb5">Message / Content — paste this HTML into the template body:</div>
+          <button onclick="copyTemplate()" style="background:#1e40af;color:white;border:none;border-radius:6px;padding:4px 10px;font-size:10px;cursor:pointer;font-family:'DM Sans',sans-serif">📋 Copy</button>
+        </div>
+        <div id="templateBody" style="background:#162032;border-radius:7px;padding:12px;font-family:'DM Mono',monospace;font-size:10.5px;color:#94a3b8;line-height:1.7;white-space:pre-wrap;max-height:220px;overflow-y:auto;user-select:all">&lt;div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px;background:#f9f9f9;border-radius:8px"&gt;
+  &lt;div style="background:#16a34a;padding:16px 24px;border-radius:6px 6px 0 0"&gt;
+    &lt;h2 style="color:white;margin:0;font-size:18px"&gt;TAMISEMI NMECD Dashboard&lt;/h2&gt;
+    &lt;p style="color:#dcfce7;margin:4px 0 0;font-size:12px"&gt;Early Childhood Development &amp;middot; Tanzania Mainland&lt;/p&gt;
+  &lt;/div&gt;
+  &lt;div style="background:white;padding:24px;border-radius:0 0 6px 6px;border:1px solid #e5e7eb"&gt;
+    &lt;p style="font-size:15px;color:#111"&gt;Dear &lt;strong&gt;{{to_name}}&lt;/strong&gt;,&lt;/p&gt;
+    &lt;p style="color:#374151;line-height:1.7"&gt;
+      Your account request for the TAMISEMI NMECD Dashboard has been received.
+      Click the button below to activate your account and sign in.
+    &lt;/p&gt;
+    &lt;div style="text-align:center;margin:28px 0"&gt;
+      &lt;a href="{{activation_link}}"
+         style="background:#16a34a;color:white;padding:14px 36px;border-radius:8px;
+                text-decoration:none;font-size:15px;font-weight:bold;display:inline-block"&gt;
+        ✅ Click Here to Activate Account
+      &lt;/a&gt;
+    &lt;/div&gt;
+    &lt;p style="color:#6b7280;font-size:12px;line-height:1.6"&gt;
+      After clicking, sign in using:&lt;br&gt;
+      &lt;strong&gt;Email:&lt;/strong&gt; {{to_email}}&lt;br&gt;
+      &lt;strong&gt;Password:&lt;/strong&gt; the password you chose when registering
+    &lt;/p&gt;
+    &lt;hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0"&gt;
+    &lt;p style="color:#9ca3af;font-size:11px"&gt;If you did not request this account, ignore this email.&lt;/p&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</div>
+        <div style="font-size:10px;color:#4a6a8a;margin-top:8px">💡 In EmailJS, make sure the template editor is set to <strong style="color:#f0f6ff">HTML mode</strong> (not plain text) so the button renders correctly.</div>
+      </div>
+
+      <div class="auth-msg" id="ejsMsg" style="display:none;margin-bottom:12px"></div>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="ejs-btn ejs-save" onclick="saveEjsConfig()">💾 Save Configuration</button>
+        <button class="ejs-btn ejs-test" id="ejsTestBtn" onclick="testEmailJs()">📨 Send Test Email to <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="f990918c809894909a91989c95b98d9c9a9d9c97d7968bd78d83">[email&#160;protected]</a></button>
+      </div>
+    </div>
+
+    <!-- ── TAB: HOW IT WORKS ── -->
+    <div class="admin-body admin-tab-panel" id="apanel-guide" style="display:none">
+      <div style="font-size:14px;font-weight:600;margin-bottom:14px;color:#f0f6ff">📖 How the User Management System Works</div>
+
+      <div class="guide-step">
+        <div class="guide-num">1</div>
+        <div>
+          <strong style="color:#f0f6ff">New user requests access</strong><br>
+          They click "Request Access" on the login screen, fill in their name, email, organization and password. Their account is saved on their computer as <span style="color:#fbbf24;background:rgba(245,158,11,0.1);padding:1px 6px;border-radius:4px">Pending</span>.
+        </div>
+      </div>
+      <div class="guide-step">
+        <div class="guide-num">2</div>
+        <div>
+          <strong style="color:#f0f6ff">You receive an email notification</strong><br>
+          An email is sent to <span style="color:#38bdf8"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="dab3b2afa3bbb7b3b9b2bbbfb69aaebfb9bebfb4f4b5a8f4aea0">[email&#160;protected]</a></span> with the user's details and two buttons: <span style="color:#4ade80">✓ Approve</span> and <span style="color:#f87171">✕ Reject</span>. <em style="color:#7a9bb5">(Requires EmailJS to be configured in the Email Setup tab)</em>
+        </div>
+      </div>
+      <div class="guide-step">
+        <div class="guide-num">3</div>
+        <div>
+          <strong style="color:#f0f6ff">You approve from email or Admin Panel</strong><br>
+          Click Approve in the email → your dashboard opens and automatically processes the approval. Or open the Admin Panel → Users tab → click ✓ Approve next to any pending request.
+        </div>
+      </div>
+      <div class="guide-step">
+        <div class="guide-num">4</div>
+        <div>
+          <strong style="color:#f0f6ff">User receives approval email</strong><br>
+          An automatic email is sent to the new user telling them their account is approved and they can now sign in.
+        </div>
+      </div>
+      <div class="guide-step">
+        <div class="guide-num">5</div>
+        <div>
+          <strong style="color:#f0f6ff">User signs in and accesses the dashboard</strong><br>
+          On their own computer they reload the dashboard and sign in. They can view all submission data but cannot access Admin Panel features.
+        </div>
+      </div>
+
+      <div style="background:#0a1e35;border:1px solid #1e3a5c;border-radius:10px;padding:14px;margin-top:18px;font-size:12px;color:#7a9bb5;line-height:1.8">
+        <strong style="color:#fbbf24">⚠ Important:</strong> This is a local HTML file — user accounts are stored in each person's browser. The EmailJS emails are the bridge between computers. Without EmailJS configured, you can still manually approve users if they are on the same computer, but you won't receive email notifications.
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="logo-wrap">
+    <div class="logo">🏛️</div>
+    <div class="brand">
+      <h1>TAMISEMI – NMECD Programme</h1>
+      <p>Early Childhood Development · Report Submission Tracker · Tanzania Mainland</p>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="live-badge"><span class="live-dot"></span> Live</div>
+    <button class="btn btn-blue" onclick="fetchKobo()">⟳ Sync KoboToolbox</button>
+    <button class="btn btn-outline" onclick="document.getElementById('fileInput').click()">📂 Upload Excel</button>
+    <button class="btn btn-outline" onclick="toggleKoboConfig()">⚙ Kobo Config</button>
+    <button class="btn btn-outline" id="adminBtn" onclick="openAdmin()" style="display:none;border-color:#6366f1;color:#a5b4fc">👑 Admin Panel</button>
+    <div class="user-chip" onclick="showUserMenu()" id="userChip" style="display:none">
+      <div class="uc-avatar" id="ucAvatar"></div>
+      <div>
+        <div class="uc-name" id="ucName"></div>
+        <div class="uc-role" id="ucRole"></div>
+      </div>
+    </div>
+    <button class="btn btn-outline" id="logoutBtn" onclick="doLogout()" style="display:none;color:#f87171;border-color:#7f1d1d">Sign Out</button>
+    <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="handleFile(event)">
+  </div>
+</div>
+
+<!-- KOBO CONFIG (hidden by default) -->
+<div id="koboConfig" style="display:none;padding:10px 28px 0">
+  <div class="kobo-panel">
+    <h3>⚙ KoboToolbox API Configuration</h3>
+    <div class="kobo-inputs">
+      <input class="kobo-in" id="koboToken" placeholder="API Token" value="95cff10e45b65f57d92101bb96ac280e7c78b3f5">
+      <input class="kobo-in" id="koboAsset" placeholder="Asset UID" value="aEDn9SBV4kRcpSzpWTmuUw">
+      <input class="kobo-in" id="koboServer" placeholder="Server URL" value="https://kf.kobotoolbox.org" style="flex:2">
+      <button class="btn btn-blue" onclick="fetchKobo()">Connect & Fetch</button>
+    </div>
+    <p style="color:var(--muted);font-size:10px;margin-top:8px">
+      ⚠ Make sure CORS is enabled on your KoboToolbox project (Share → Allow API access). Data is fetched directly from your browser.
+    </p>
+  </div>
+</div>
+
+<!-- QUARTER BAR -->
+<div class="quarter-bar">
+  <span class="quarter-label">Reporting Quarter:</span>
+  <div class="quarter-tabs">
+    <button class="qtab active-q1" data-q="Q1" onclick="setQuarter('Q1')">Q1 — Oct–Dec 2025</button>
+    <button class="qtab" data-q="Q2" onclick="setQuarter('Q2')">Q2 — Jan–Mar 2026</button>
+    <button class="qtab" data-q="Q3" onclick="setQuarter('Q3')">Q3 — Apr–Jun 2026</button>
+    <button class="qtab" data-q="Q4" onclick="setQuarter('Q4')">Q4 — Jul–Sep 2026</button>
+  </div>
+  <div class="kobo-status">
+    <span class="kobo-badge kobo-loading" id="koboBadge">⟳ Not synced</span>
+    <span style="font-size:10px;color:var(--muted)" id="koboLastSync"></span>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="stats-row">
+  <div class="stat s-blue">
+    <div class="stat-lbl">Total Councils</div>
+    <div class="stat-val" id="sTotal">184</div>
+    <div class="stat-sub">26 Regions · Tanzania Mainland</div>
+  </div>
+  <div class="stat s-green">
+    <div class="stat-lbl">Submitted</div>
+    <div class="stat-val" id="sSubmit">—</div>
+    <div class="stat-sub" id="sSubmitSub">Councils reported</div>
+  </div>
+  <div class="stat s-red">
+    <div class="stat-lbl">Not Submitted</div>
+    <div class="stat-val" id="sPend">—</div>
+    <div class="stat-sub" id="sPendSub">Awaiting report</div>
+  </div>
+  <div class="stat s-amber">
+    <div class="stat-lbl">Overall Rate</div>
+    <div class="stat-val" id="sRate">—</div>
+    <div class="stat-sub" id="sRateSub">Full regions: —</div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- LEFT -->
+  <div class="left">
+
+    <!-- Overview ring -->
+    <div class="overview-card">
+      <div class="ring-wrap">
+        <svg width="92" height="92" viewBox="0 0 92 92">
+          <circle cx="46" cy="46" r="38" fill="none" stroke="#1d2d42" stroke-width="9"/>
+          <circle cx="46" cy="46" r="38" fill="none" stroke="#22c55e" stroke-width="9"
+            stroke-dasharray="238.76" stroke-dashoffset="238.76"
+            stroke-linecap="round" id="ringCircle"/>
+        </svg>
+        <div class="ring-center">
+          <div class="ring-pct" id="ringPct">0%</div>
+          <div class="ring-sub">overall</div>
+        </div>
+      </div>
+      <div class="overview-info">
+        <h3 id="ovTitle">Submission Progress</h3>
+        <p id="ovDesc" style="color:var(--muted);font-size:12px">Loading data…</p>
+        <div class="spark" id="sparkBars"></div>
+      </div>
+    </div>
+
+    <div class="section-head">📊 Region Breakdown</div>
+
+    <div class="table-card">
+      <div class="table-controls">
+        <input class="search-in" id="searchIn" placeholder="Search region…" oninput="renderTable()">
+        <button class="filt on" id="fAll" onclick="setFilt('all')">All</button>
+        <button class="filt" id="fFull" onclick="setFilt('full')">100%</button>
+        <button class="filt" id="fPart" onclick="setFilt('partial')">Partial</button>
+        <button class="filt" id="fNone" onclick="setFilt('none')">0%</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Region</th>
+              <th>Submitted/Total</th>
+              <th style="min-width:130px">Progress</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="tBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="section-head">📋 Council Detail</div>
+    <div class="council-card">
+      <div class="council-hdr">
+        <span id="councilTitle">All Councils</span>
+        <span style="font-size:10px;color:var(--muted)">Click a region to filter</span>
+      </div>
+      <div class="council-grid" id="councilGrid"></div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT: MAP -->
+  <div class="right">
+    <div class="map-hdr">
+      <h2>🗺 Tanzania Mainland — Submission Status by Region</h2>
+      <p>Hover any region for details · Region boundaries shown to scale</p>
+      <div class="map-legend">
+        <div class="leg-item"><div class="leg-circle" style="background:#22c55e"></div> Fully Submitted (100%)</div>
+        <div class="leg-item"><div class="leg-circle" style="background:#f59e0b"></div> Partial (50–99%)</div>
+        <div class="leg-item"><div class="leg-circle" style="background:#f97316"></div> Low (&lt;50%)</div>
+        <div class="leg-item"><div class="leg-circle" style="background:#ef4444"></div> Not Submitted (0%)</div>
+        <div class="leg-item"><div class="leg-circle" style="background:#1e3a5f;border:1px solid #38bdf8"></div> Water body</div>
+      </div>
+    </div>
+    <div class="map-area">
+      <svg id="tzMap" viewBox="0 0 520 660" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+    <div class="map-footer" id="mapFooter">Updated: —</div>
+  </div>
+
+</div>
+
+<div class="tooltip" id="tooltip">
+  <div class="tt-region" id="ttName"></div>
+  <div class="tt-row"><span class="tt-lbl">Submitted</span><span class="tt-val" id="ttSub"></span></div>
+  <div class="tt-row"><span class="tt-lbl">Not Submitted</span><span class="tt-val" id="ttNot"></span></div>
+  <div class="tt-row"><span class="tt-lbl">Total Councils</span><span class="tt-val" id="ttTot"></span></div>
+  <div class="tt-row"><span class="tt-lbl">Rate</span><span class="tt-val" id="ttRate"></span></div>
+</div>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+// ===================== CONSTANTS =====================
+const KOBO_FIELD_REGION = 'region';   // adjust to match your KoboToolbox field names
+const KOBO_FIELD_STATUS = 'status';
+
+const QUARTERS = {
+  Q1:{label:'Oct–Dec 2025',color:'#6366f1'},
+  Q2:{label:'Jan–Mar 2026',color:'#0ea5e9'},
+  Q3:{label:'Apr–Jun 2026',color:'#f59e0b'},
+  Q4:{label:'Jul–Sep 2026',color:'#10b981'},
+};
+let activeQ = 'Q1';
+
+// ===================== EMBEDDED DATA =====================
+const BASE_DATA = [
+  {region:"Arusha",council:"Arusha CC",type:"CC",status:"SUBMITTED"},
+  {region:"Arusha",council:"Arusha DC",type:"DC",status:"SUBMITTED"},
+  {region:"Arusha",council:"Karatu DC",type:"DC",status:"SUBMITTED"},
+  {region:"Arusha",council:"Longido DC",type:"DC",status:"SUBMITTED"},
+  {region:"Arusha",council:"Meru DC",type:"DC",status:"SUBMITTED"},
+  {region:"Arusha",council:"Monduli DC",type:"DC",status:"SUBMITTED"},
+  {region:"Arusha",council:"Ngorongoro DC",type:"DC",status:"SUBMITTED"},
+  {region:"Dar es Salaam",council:"Ilala MC",type:"MC",status:"SUBMITTED"},
+  {region:"Dar es Salaam",council:"Kigamboni MC",type:"MC",status:"SUBMITTED"},
+  {region:"Dar es Salaam",council:"Kinondoni MC",type:"MC",status:"SUBMITTED"},
+  {region:"Dar es Salaam",council:"Temeke MC",type:"MC",status:"SUBMITTED"},
+  {region:"Dar es Salaam",council:"Ubungo MC",type:"MC",status:"SUBMITTED"},
+  {region:"Dodoma",council:"Bahi DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Dodoma",council:"Chamwino DC",type:"DC",status:"SUBMITTED"},
+  {region:"Dodoma",council:"Chemba DC",type:"DC",status:"SUBMITTED"},
+  {region:"Dodoma",council:"Dodoma DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Dodoma",council:"Kondoa DC",type:"DC",status:"SUBMITTED"},
+  {region:"Dodoma",council:"Kondoa TC",type:"TC",status:"SUBMITTED"},
+  {region:"Dodoma",council:"Kongwa DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Dodoma",council:"Mpwapwa DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Geita",council:"Bukombe DC",type:"DC",status:"SUBMITTED"},
+  {region:"Geita",council:"Chato DC",type:"DC",status:"SUBMITTED"},
+  {region:"Geita",council:"Geita DC",type:"DC",status:"SUBMITTED"},
+  {region:"Geita",council:"Geita TC",type:"TC",status:"SUBMITTED"},
+  {region:"Geita",council:"Mbogwe DC",type:"DC",status:"SUBMITTED"},
+  {region:"Geita",council:"Nyang'hwale DC",type:"DC",status:"SUBMITTED"},
+  {region:"Iringa",council:"Iringa DC",type:"DC",status:"SUBMITTED"},
+  {region:"Iringa",council:"Iringa MC",type:"MC",status:"SUBMITTED"},
+  {region:"Iringa",council:"Kilolo DC",type:"DC",status:"SUBMITTED"},
+  {region:"Iringa",council:"Mafinga TC",type:"TC",status:"SUBMITTED"},
+  {region:"Iringa",council:"Mufindi DC",type:"DC",status:"SUBMITTED"},
+  {region:"Kagera",council:"Biharamulo DC",type:"DC",status:"SUBMITTED"},
+  {region:"Kagera",council:"Bukoba DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Kagera",council:"Bukoba MC",type:"MC",status:"NOT SUBMITTED"},
+  {region:"Kagera",council:"Karagwe DC",type:"DC",status:"SUBMITTED"},
+  {region:"Kagera",council:"Kyerwa DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Kagera",council:"Missenyi DC",type:"DC",status:"SUBMITTED"},
+  {region:"Kagera",council:"Muleba DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Kagera",council:"Ngara DC",type:"DC",status:"SUBMITTED"},
+  {region:"Katavi",council:"Mlele DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Katavi",council:"Mpanda DC",type:"DC",status:"SUBMITTED"},
+  {region:"Katavi",council:"Mpanda TC",type:"TC",status:"SUBMITTED"},
+  {region:"Katavi",council:"Nsimbo DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Katavi",council:"Tanganyika DC",type:"DC",status:"SUBMITTED"},
+  {region:"Kigoma",council:"Buhigwe DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Kigoma",council:"Kakonko DC",type:"DC",status:"SUBMITTED"},
+  {region:"Kigoma",council:"Kasulu DC",type:"DC",status:"SUBMITTED"},
+  {region:"Kigoma",council:"Kasulu TC",type:"TC",status:"NOT SUBMITTED"},
+  {region:"Kigoma",council:"Kibondo DC",type:"DC",status:"SUBMITTED"},
+  {region:"Kigoma",council:"Kigoma DC",type:"DC",status:"SUBMITTED"},
+  {region:"Kigoma",council:"Kigoma MC",type:"MC",status:"SUBMITTED"},
+  {region:"Kigoma",council:"Uvinza DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Kilimanjaro",council:"Hai DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Kilimanjaro",council:"Moshi DC",type:"DC",status:"SUBMITTED"},
+  {region:"Kilimanjaro",council:"Moshi MC",type:"MC",status:"NOT SUBMITTED"},
+  {region:"Kilimanjaro",council:"Mwanga DC",type:"DC",status:"SUBMITTED"},
+  {region:"Kilimanjaro",council:"Rombo DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Kilimanjaro",council:"Same DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Kilimanjaro",council:"Siha DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Lindi",council:"Kilwa DC",type:"DC",status:"SUBMITTED"},
+  {region:"Lindi",council:"Lindi DC",type:"DC",status:"SUBMITTED"},
+  {region:"Lindi",council:"Lindi MC",type:"MC",status:"SUBMITTED"},
+  {region:"Lindi",council:"Liwale DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Lindi",council:"Nachingwea DC",type:"DC",status:"SUBMITTED"},
+  {region:"Lindi",council:"Ruangwa DC",type:"DC",status:"SUBMITTED"},
+  {region:"Manyara",council:"Babati DC",type:"DC",status:"SUBMITTED"},
+  {region:"Manyara",council:"Babati TC",type:"TC",status:"NOT SUBMITTED"},
+  {region:"Manyara",council:"Hanang DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Manyara",council:"Kiteto DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Manyara",council:"Mbulu DC",type:"DC",status:"SUBMITTED"},
+  {region:"Manyara",council:"Mbulu TC",type:"TC",status:"SUBMITTED"},
+  {region:"Manyara",council:"Simanjiro DC",type:"DC",status:"SUBMITTED"},
+  {region:"Mara",council:"Bunda DC",type:"DC",status:"SUBMITTED"},
+  {region:"Mara",council:"Bunda TC",type:"TC",status:"SUBMITTED"},
+  {region:"Mara",council:"Butiama DC",type:"DC",status:"SUBMITTED"},
+  {region:"Mara",council:"Musoma DC",type:"DC",status:"SUBMITTED"},
+  {region:"Mara",council:"Musoma MC",type:"MC",status:"SUBMITTED"},
+  {region:"Mara",council:"Rorya DC",type:"DC",status:"SUBMITTED"},
+  {region:"Mara",council:"Serengeti DC",type:"DC",status:"SUBMITTED"},
+  {region:"Mara",council:"Tarime DC",type:"DC",status:"SUBMITTED"},
+  {region:"Mara",council:"Tarime TC",type:"TC",status:"SUBMITTED"},
+  {region:"Mbeya",council:"Busokelo DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Mbeya",council:"Chunya DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Mbeya",council:"Kyela DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Mbeya",council:"Mbarali DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Mbeya",council:"Mbeya CC",type:"CC",status:"NOT SUBMITTED"},
+  {region:"Mbeya",council:"Mbeya DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Mbeya",council:"Rungwe DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Morogoro",council:"Gairo DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Morogoro",council:"Kilosa DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Morogoro",council:"Kilosa TC",type:"TC",status:"NOT SUBMITTED"},
+  {region:"Morogoro",council:"Kilombero DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Morogoro",council:"Malinyi DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Morogoro",council:"Mlimba DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Morogoro",council:"Morogoro DC",type:"DC",status:"SUBMITTED"},
+  {region:"Morogoro",council:"Morogoro MC",type:"MC",status:"NOT SUBMITTED"},
+  {region:"Morogoro",council:"Mvomero DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Mtwara",council:"Masasi DC",type:"DC",status:"SUBMITTED"},
+  {region:"Mtwara",council:"Masasi TC",type:"TC",status:"SUBMITTED"},
+  {region:"Mtwara",council:"Mtwara DC",type:"DC",status:"SUBMITTED"},
+  {region:"Mtwara",council:"Mtwara MC",type:"MC",status:"SUBMITTED"},
+  {region:"Mtwara",council:"Nanyumbu DC",type:"DC",status:"SUBMITTED"},
+  {region:"Mtwara",council:"Newala DC",type:"DC",status:"SUBMITTED"},
+  {region:"Mtwara",council:"Newala TC",type:"TC",status:"SUBMITTED"},
+  {region:"Mtwara",council:"Tandahimba DC",type:"DC",status:"SUBMITTED"},
+  {region:"Mtwara",council:"Nanyamba TC",type:"TC",status:"SUBMITTED"},
+  {region:"Mwanza",council:"Ilemela MC",type:"MC",status:"SUBMITTED"},
+  {region:"Mwanza",council:"Kwimba DC",type:"DC",status:"SUBMITTED"},
+  {region:"Mwanza",council:"Magu DC",type:"DC",status:"SUBMITTED"},
+  {region:"Mwanza",council:"Misungwi DC",type:"DC",status:"SUBMITTED"},
+  {region:"Mwanza",council:"Nyamagana MC",type:"MC",status:"SUBMITTED"},
+  {region:"Mwanza",council:"Sengerema DC",type:"DC",status:"SUBMITTED"},
+  {region:"Mwanza",council:"Ukerewe DC",type:"DC",status:"SUBMITTED"},
+  {region:"Mwanza",council:"Buchosa DC",type:"DC",status:"SUBMITTED"},
+  {region:"Njombe",council:"Ludewa DC",type:"DC",status:"SUBMITTED"},
+  {region:"Njombe",council:"Makete DC",type:"DC",status:"SUBMITTED"},
+  {region:"Njombe",council:"Njombe DC",type:"DC",status:"SUBMITTED"},
+  {region:"Njombe",council:"Njombe TC",type:"TC",status:"SUBMITTED"},
+  {region:"Njombe",council:"Wanging'ombe DC",type:"DC",status:"SUBMITTED"},
+  {region:"Njombe",council:"Njombe TC",type:"TC",status:"SUBMITTED"},
+  {region:"Pwani",council:"Bagamoyo DC",type:"DC",status:"SUBMITTED"},
+  {region:"Pwani",council:"Kibiti DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Pwani",council:"Kibaha DC",type:"DC",status:"SUBMITTED"},
+  {region:"Pwani",council:"Kibaha TC",type:"TC",status:"NOT SUBMITTED"},
+  {region:"Pwani",council:"Kisarawe DC",type:"DC",status:"SUBMITTED"},
+  {region:"Pwani",council:"Mafia DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Pwani",council:"Mkuranga DC",type:"DC",status:"SUBMITTED"},
+  {region:"Pwani",council:"Rufiji DC",type:"DC",status:"SUBMITTED"},
+  {region:"Pwani",council:"Chalinze DC",type:"DC",status:"SUBMITTED"},
+  {region:"Rukwa",council:"Kalambo DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Rukwa",council:"Nkasi DC",type:"DC",status:"SUBMITTED"},
+  {region:"Rukwa",council:"Sumbawanga DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Rukwa",council:"Sumbawanga MC",type:"MC",status:"SUBMITTED"},
+  {region:"Ruvuma",council:"Mbinga DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Ruvuma",council:"Mbinga TC",type:"TC",status:"SUBMITTED"},
+  {region:"Ruvuma",council:"Namtumbo DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Ruvuma",council:"Nyasa DC",type:"DC",status:"SUBMITTED"},
+  {region:"Ruvuma",council:"Songea DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Ruvuma",council:"Songea MC",type:"MC",status:"SUBMITTED"},
+  {region:"Ruvuma",council:"Tunduru DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Ruvuma",council:"Madaba DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Shinyanga",council:"Kahama TC",type:"TC",status:"SUBMITTED"},
+  {region:"Shinyanga",council:"Kishapu DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Shinyanga",council:"Shinyanga DC",type:"DC",status:"SUBMITTED"},
+  {region:"Shinyanga",council:"Shinyanga MC",type:"MC",status:"SUBMITTED"},
+  {region:"Shinyanga",council:"Msalala DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Shinyanga",council:"Ushetu DC",type:"DC",status:"SUBMITTED"},
+  {region:"Simiyu",council:"Bariadi DC",type:"DC",status:"SUBMITTED"},
+  {region:"Simiyu",council:"Bariadi TC",type:"TC",status:"SUBMITTED"},
+  {region:"Simiyu",council:"Busega DC",type:"DC",status:"SUBMITTED"},
+  {region:"Simiyu",council:"Itilima DC",type:"DC",status:"SUBMITTED"},
+  {region:"Simiyu",council:"Maswa DC",type:"DC",status:"SUBMITTED"},
+  {region:"Simiyu",council:"Meatu DC",type:"DC",status:"SUBMITTED"},
+  {region:"Singida",council:"Iramba DC",type:"DC",status:"SUBMITTED"},
+  {region:"Singida",council:"Ikungi DC",type:"DC",status:"SUBMITTED"},
+  {region:"Singida",council:"Manyoni DC",type:"DC",status:"SUBMITTED"},
+  {region:"Singida",council:"Mkalama DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Singida",council:"Singida DC",type:"DC",status:"SUBMITTED"},
+  {region:"Singida",council:"Singida MC",type:"MC",status:"SUBMITTED"},
+  {region:"Singida",council:"Singida TC",type:"TC",status:"SUBMITTED"},
+  {region:"Songwe",council:"Ileje DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Songwe",council:"Mbozi DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Songwe",council:"Momba DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Songwe",council:"Songwe DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Songwe",council:"Tunduma TC",type:"TC",status:"SUBMITTED"},
+  {region:"Tabora",council:"Igunga DC",type:"DC",status:"SUBMITTED"},
+  {region:"Tabora",council:"Kaliua DC",type:"DC",status:"SUBMITTED"},
+  {region:"Tabora",council:"Nzega DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Tabora",council:"Nzega TC",type:"TC",status:"SUBMITTED"},
+  {region:"Tabora",council:"Sikonge DC",type:"DC",status:"SUBMITTED"},
+  {region:"Tabora",council:"Tabora MC",type:"MC",status:"SUBMITTED"},
+  {region:"Tabora",council:"Urambo DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Tabora",council:"Uyui DC",type:"DC",status:"SUBMITTED"},
+  {region:"Tanga",council:"Handeni DC",type:"DC",status:"SUBMITTED"},
+  {region:"Tanga",council:"Handeni TC",type:"TC",status:"SUBMITTED"},
+  {region:"Tanga",council:"Kilindi DC",type:"DC",status:"SUBMITTED"},
+  {region:"Tanga",council:"Korogwe DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Tanga",council:"Korogwe TC",type:"TC",status:"SUBMITTED"},
+  {region:"Tanga",council:"Lushoto DC",type:"DC",status:"SUBMITTED"},
+  {region:"Tanga",council:"Mkinga DC",type:"DC",status:"NOT SUBMITTED"},
+  {region:"Tanga",council:"Muheza DC",type:"DC",status:"SUBMITTED"},
+  {region:"Tanga",council:"Pangani DC",type:"DC",status:"SUBMITTED"},
+  {region:"Tanga",council:"Tanga CC",type:"CC",status:"SUBMITTED"},
+  {region:"Tanga",council:"Bumbuli DC",type:"DC",status:"SUBMITTED"},
+];
+
+// Per-quarter data store (Q1 pre-loaded, Q2-Q4 start empty)
+const QUARTER_DATA = {
+  Q1: [...BASE_DATA],
+  Q2: BASE_DATA.map(d => ({...d, status:'NOT SUBMITTED'})),
+  Q3: BASE_DATA.map(d => ({...d, status:'NOT SUBMITTED'})),
+  Q4: BASE_DATA.map(d => ({...d, status:'NOT SUBMITTED'})),
+};
+
+// ===================== TANZANIA MAP — ACCURATE REGION POLYGONS =====================
+// Coordinates in [lng, lat] format, projected to SVG
+// Based on standard cartographic data for Tanzania mainland 26 regions
+// SVG viewBox 0 0 520 660, bounds: lng 29.3–40.5, lat -0.9 to -11.8
+
+function project(lng, lat) {
+  const minLng=29.3, maxLng=40.5, minLat=-11.8, maxLat=-0.9;
+  const W=520, H=640, pad=22;
+  const x = pad + (lng - minLng) / (maxLng - minLng) * (W - pad*2);
+  const y = pad + (lat - maxLat) / (minLat - maxLat) * (H - pad*2);
+  return [Math.round(x*10)/10, Math.round(y*10)/10];
+}
+
+function poly(coords) {
+  return coords.map(([lng,lat]) => project(lng,lat).join(',')).join(' ');
+}
+
+// Accurate region boundary polygons (lng, lat)
+const REGION_POLYS = {
+  Kagera:       [[29.5,-1.0],[31.0,-1.0],[32.0,-1.8],[31.5,-2.5],[30.5,-2.8],[29.5,-2.3],[29.3,-1.5]],
+  Mara:         [[33.8,-1.1],[35.1,-1.3],[35.2,-2.1],[34.8,-2.5],[33.8,-2.3],[33.4,-1.6],[33.5,-1.1]],
+  Mwanza:       [[31.8,-2.0],[33.3,-2.0],[33.8,-2.5],[33.5,-3.2],[32.5,-3.6],[31.8,-3.2],[31.5,-2.5]],
+  Geita:        [[30.8,-2.5],[32.0,-2.5],[32.8,-3.0],[32.5,-3.8],[31.5,-3.8],[30.8,-3.4],[30.5,-2.8]],
+  Simiyu:       [[33.3,-2.0],[34.8,-2.0],[35.2,-2.5],[35.0,-3.5],[34.2,-3.8],[33.3,-3.2],[33.0,-2.5]],
+  Shinyanga:    [[32.8,-3.0],[34.2,-3.0],[34.8,-3.8],[34.5,-4.8],[33.5,-4.8],[32.8,-4.2],[32.5,-3.5]],
+  Singida:      [[34.2,-4.0],[35.8,-3.8],[36.5,-4.5],[36.2,-5.8],[35.0,-6.0],[34.0,-5.5],[33.8,-4.8]],
+  Tabora:       [[31.5,-4.0],[34.0,-4.0],[34.2,-5.5],[33.5,-6.8],[32.0,-6.8],[31.0,-6.0],[30.8,-5.0]],
+  Kigoma:       [[29.3,-3.5],[31.0,-3.2],[31.5,-4.2],[31.0,-5.5],[30.0,-5.8],[29.3,-5.3],[29.0,-4.3]],
+  Katavi:       [[30.5,-5.5],[32.0,-5.5],[32.8,-6.5],[32.5,-7.8],[31.0,-7.8],[30.2,-7.0],[30.0,-6.2]],
+  Rukwa:        [[30.8,-7.5],[32.5,-7.5],[33.0,-8.5],[32.5,-9.8],[31.2,-10.0],[30.2,-9.5],[30.0,-8.5]],
+  Mbeya:        [[32.5,-7.5],[34.5,-7.5],[35.0,-8.5],[34.8,-9.0],[33.5,-9.0],[32.8,-8.5],[32.5,-8.0]],
+  Songwe:       [[32.5,-8.5],[34.0,-8.5],[34.5,-9.0],[34.2,-9.8],[33.0,-9.8],[32.5,-9.5],[32.2,-9.0]],
+  Njombe:       [[34.0,-8.8],[35.8,-8.8],[36.2,-9.8],[35.8,-10.8],[34.8,-10.8],[34.0,-10.0],[33.8,-9.3]],
+  Iringa:       [[34.5,-7.0],[36.8,-6.8],[37.2,-8.0],[36.5,-9.2],[35.5,-9.0],[34.8,-8.5],[34.5,-7.8]],
+  Ruvuma:       [[34.5,-9.8],[36.5,-9.8],[38.5,-10.2],[38.5,-11.6],[36.0,-11.6],[34.8,-11.2],[34.3,-10.5]],
+  Manyara:      [[35.0,-3.5],[37.5,-3.5],[38.0,-4.5],[37.5,-5.5],[36.5,-6.0],[35.5,-5.5],[35.0,-4.8]],
+  Arusha:       [[35.5,-2.2],[37.5,-2.5],[38.0,-3.3],[38.0,-4.2],[37.0,-4.2],[35.8,-3.8],[35.5,-3.0]],
+  Kilimanjaro:  [[37.0,-2.8],[38.5,-2.8],[38.8,-3.5],[38.5,-4.3],[37.5,-4.3],[37.0,-3.8]],
+  Tanga:        [[38.0,-3.5],[40.3,-3.5],[40.5,-4.5],[40.0,-5.5],[38.8,-5.8],[38.0,-5.2],[37.5,-4.5]],
+  Dodoma:       [[35.2,-4.8],[37.0,-4.8],[37.5,-6.0],[36.8,-6.8],[36.0,-6.5],[35.2,-6.0],[34.8,-5.5]],
+  Morogoro:     [[36.0,-5.5],[38.5,-5.5],[39.0,-6.5],[38.8,-8.5],[37.5,-8.5],[36.5,-7.5],[36.0,-6.5]],
+  Pwani:        [[38.0,-5.8],[40.5,-5.8],[40.5,-8.5],[39.5,-8.5],[38.5,-7.5],[38.0,-6.8]],
+  Lindi:        [[38.5,-9.0],[40.5,-8.5],[40.5,-10.5],[39.0,-11.2],[38.0,-11.0],[37.5,-10.0],[38.0,-9.5]],
+  Mtwara:       [[39.2,-10.0],[40.5,-10.5],[40.5,-11.6],[39.5,-11.6],[38.8,-11.2],[38.8,-10.5]],
+  "Dar es Salaam":[[39.0,-6.5],[39.6,-6.5],[39.6,-7.1],[39.0,-7.1]],
+};
+
+// Label positions per region (lng, lat)
+const REGION_LABELS = {
+  Kagera:{lng:30.5,lat:-1.8},Mara:{lng:34.2,lat:-1.8},Mwanza:{lng:32.5,lat:-2.7},
+  Geita:{lng:31.5,lat:-3.2},Simiyu:{lng:34.2,lat:-2.8},Shinyanga:{lng:33.7,lat:-4.0},
+  Singida:{lng:35.0,lat:-5.0},Tabora:{lng:32.5,lat:-5.5},Kigoma:{lng:30.0,lat:-4.5},
+  Katavi:{lng:31.3,lat:-6.8},Rukwa:{lng:31.5,lat:-8.8},Mbeya:{lng:33.5,lat:-8.3},
+  Songwe:{lng:33.2,lat:-9.2},Njombe:{lng:35.0,lat:-9.8},Iringa:{lng:35.8,lat:-8.0},
+  Ruvuma:{lng:36.5,lat:-10.8},Manyara:{lng:36.2,lat:-4.5},Arusha:{lng:36.8,lat:-3.5},
+  Kilimanjaro:{lng:37.8,lat:-3.3},Tanga:{lng:38.8,lat:-4.5},Dodoma:{lng:36.0,lat:-5.8},
+  Morogoro:{lng:37.5,lat:-7.0},Pwani:{lng:39.3,lat:-7.0},"Dar es Salaam":{lng:39.3,lat:-6.8},
+  Lindi:{lng:39.2,lat:-10.0},Mtwara:{lng:39.8,lat:-11.0}
+};
+
+// ===================== STATE =====================
+let currentData = [...QUARTER_DATA.Q1];
+let activeFilt = 'all';
+let selectedRegion = null;
+
+// ===================== HELPERS =====================
+function summary(data) {
+  const m = {};
+  data.forEach(d => {
+    if (!m[d.region]) m[d.region] = {total:0,submitted:0};
+    m[d.region].total++;
+    if (d.status==='SUBMITTED') m[d.region].submitted++;
+  });
+  return m;
+}
+function color(sub, tot) {
+  if (tot===0) return '#374151';
+  const p = sub/tot;
+  if (p===1) return '#16a34a';
+  if (p>=0.5) return '#d97706';
+  if (p>0) return '#ea580c';
+  return '#dc2626';
+}
+function colorFill(sub,tot){
+  if(tot===0) return '#374151';
+  const p=sub/tot;
+  if(p===1) return '#166534';
+  if(p>=0.5) return '#92400e';
+  if(p>0) return '#7c2d12';
+  return '#7f1d1d';
+}
+function badgeHtml(sub,tot){
+  const p=sub/tot;
+  if(p===1) return '<span class="badge b-green">✅ Complete</span>';
+  if(p===0) return '<span class="badge b-red">❌ None</span>';
+  return '<span class="badge b-amber">⚠ Partial</span>';
+}
+
+// ===================== RENDER =====================
+function render(data) {
+  currentData = data;
+  const sm = summary(data);
+  const tot = data.length;
+  const sub = data.filter(d=>d.status==='SUBMITTED').length;
+  const pend = tot - sub;
+  const pct = tot===0?0:Math.round(sub/tot*100);
+  const full = Object.values(sm).filter(v=>v.submitted===v.total).length;
+
+  // Stats
+  document.getElementById('sTotal').textContent = tot;
+  document.getElementById('sSubmit').textContent = sub;
+  document.getElementById('sPend').textContent = pend;
+  document.getElementById('sRate').textContent = pct+'%';
+  document.getElementById('sSubmitSub').textContent = pct+'% of all councils';
+  document.getElementById('sPendSub').textContent = pend+' councils remaining';
+  document.getElementById('sRateSub').textContent = `Full regions: ${full}/26`;
+
+  // Ring
+  const c = 238.76;
+  document.getElementById('ringCircle').style.strokeDashoffset = c - pct/100*c;
+  document.getElementById('ringPct').textContent = pct+'%';
+  document.getElementById('ovTitle').textContent = `${sub} of ${tot} Councils Submitted`;
+  document.getElementById('ovDesc').textContent =
+    `${full} regions fully submitted · ${26-full} regions pending · Quarter: ${QUARTERS[activeQ].label}`;
+
+  // Spark
+  const sp = document.getElementById('sparkBars');
+  sp.innerHTML = Object.values(sm).map(v=>{
+    const p=Math.round(v.submitted/v.total*100);
+    return `<div class="spark-bar" style="background:${color(v.submitted,v.total)};width:${Math.max(3,p/5)}px" title="${p}%"></div>`;
+  }).join('');
+
+  renderTable(sm);
+  renderCouncils(data, null);
+  renderMap(sm);
+  document.getElementById('mapFooter').textContent =
+    'Updated: '+new Date().toLocaleString('en-TZ',{timeZone:'Africa/Dar_es_Salaam'});
+}
+
+// ===================== TABLE =====================
+function setFilt(f) {
+  activeFilt = f;
+  ['fAll','fFull','fPart','fNone'].forEach(id=>document.getElementById(id).classList.remove('on'));
+  const map={all:'fAll',full:'fFull',partial:'fPart',none:'fNone'};
+  document.getElementById(map[f]).classList.add('on');
+  renderTable(summary(currentData));
+}
+function renderTable(sm) {
+  const search = document.getElementById('searchIn').value.toLowerCase();
+  let rows = Object.entries(sm).sort(([,a],[,b])=>b.submitted/b.total-a.submitted/a.total);
+  if (search) rows = rows.filter(([r])=>r.toLowerCase().includes(search));
+  if (activeFilt==='full') rows = rows.filter(([,v])=>v.submitted===v.total);
+  if (activeFilt==='partial') rows = rows.filter(([,v])=>v.submitted>0&&v.submitted<v.total);
+  if (activeFilt==='none') rows = rows.filter(([,v])=>v.submitted===0);
+
+  document.getElementById('tBody').innerHTML = rows.map(([r,v])=>{
+    const p = Math.round(v.submitted/v.total*100);
+    const c = color(v.submitted,v.total);
+    const sel = selectedRegion===r ? ' selected' : '';
+    return `<tr onclick="selectRegion('${r}')" class="${sel}">
+      <td style="font-weight:500">${r}</td>
+      <td style="font-family:'DM Mono',monospace">${v.submitted}/${v.total}</td>
+      <td><div class="prog-wrap">
+        <div class="prog-bg"><div class="prog-fill" style="width:${p}%;background:${c}"></div></div>
+        <span class="pct-txt">${p}%</span>
+      </div></td>
+      <td>${badgeHtml(v.submitted,v.total)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function selectRegion(r) {
+  selectedRegion = selectedRegion===r ? null : r;
+  const d = selectedRegion ? currentData.filter(x=>x.region===selectedRegion) : currentData;
+  document.getElementById('councilTitle').textContent = selectedRegion || 'All Councils';
+  renderCouncils(d, selectedRegion);
+  renderTable(summary(currentData));
+  renderMap(summary(currentData));
+}
+function renderCouncils(data) {
+  document.getElementById('councilGrid').innerHTML = data.map(c=>`
+    <div class="ci">
+      <div class="ci-dot" style="background:${c.status==='SUBMITTED'?'#22c55e':'#ef4444'}"></div>
+      <span class="ci-name">${c.council}</span>
+      <span class="ci-type">${c.type}</span>
+    </div>`).join('');
+}
+
+// ===================== MAP =====================
+function renderMap(sm) {
+  const svg = document.getElementById('tzMap');
+  let html = `
+    <defs>
+      <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+        <feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="rgba(0,0,0,0.4)"/>
+      </filter>
+    </defs>
+    <rect width="520" height="660" fill="#0c1525"/>
+    <!-- Ocean tint east coast -->
+    <rect x="370" y="0" width="150" height="660" fill="#0a1929" opacity="0.5"/>
+    <!-- Lake Victoria -->
+    <polygon points="${poly([[31.5,-0.9],[34.0,-0.9],[34.5,-1.5],[33.8,-2.3],[32.8,-2.1],[31.8,-1.6],[31.3,-1.1]])}
+" fill="#1e3a5f" stroke="#1e6494" stroke-width="0.8" opacity="0.85"/>
+    <text x="${project(32.8,-1.5)[0]}" y="${project(32.8,-1.5)[1]}" font-family="DM Sans" font-size="8.5" fill="#38bdf8" opacity="0.7" text-anchor="middle">L. Victoria</text>
+    <!-- Lake Tanganyika -->
+    <polygon points="${poly([[29.3,-3.5],[30.0,-3.5],[30.0,-8.8],[29.3,-8.8]])}
+" fill="#1e3a5f" stroke="#1e6494" stroke-width="0.8" opacity="0.85"/>
+    <text x="${project(29.65,-6.0)[0]}" y="${project(29.65,-6.0)[1]}" font-family="DM Sans" font-size="7" fill="#38bdf8" opacity="0.7" text-anchor="middle" transform="rotate(-90,${project(29.65,-6.0)[0]},${project(29.65,-6.0)[1]})">L. Tanganyika</text>
+    <!-- Lake Nyasa -->
+    <polygon points="${poly([[34.0,-9.8],[35.0,-9.8],[35.0,-11.5],[34.0,-11.5]])}
+" fill="#1e3a5f" stroke="#1e6494" stroke-width="0.8" opacity="0.85"/>
+    <text x="${project(34.5,-10.7)[0]}" y="${project(34.5,-10.7)[1]}" font-family="DM Sans" font-size="7" fill="#38bdf8" opacity="0.7" text-anchor="middle" transform="rotate(-90,${project(34.5,-10.7)[0]},${project(34.5,-10.7)[1]})">L. Nyasa</text>
+    <!-- Indian Ocean label -->
+    <text x="480" y="340" font-family="DM Sans" font-size="9" fill="#38bdf8" opacity="0.35" text-anchor="middle" transform="rotate(90,480,340)">Indian Ocean</text>
+  `;
+
+  // Draw region polygons
+  Object.entries(REGION_POLYS).forEach(([region, coords]) => {
+    const v = sm[region] || {total:0,submitted:0};
+    const fillColor = color(v.submitted, v.total);
+    const fillColorDark = colorFill(v.submitted, v.total);
+    const pct = v.total===0 ? 0 : Math.round(v.submitted/v.total*100);
+    const isSelected = selectedRegion===region;
+    const pts = poly(coords);
+    const lp = REGION_LABELS[region] ? project(REGION_LABELS[region].lng, REGION_LABELS[region].lat) : null;
+    const cx = coords.reduce((s,c)=>s+project(c[0],c[1])[0],0)/coords.length;
+    const cy = coords.reduce((s,c)=>s+project(c[0],c[1])[1],0)/coords.length;
+    const lx = lp ? lp[0] : cx;
+    const ly = lp ? lp[1] : cy;
+
+    html += `
+      <g class="region-g" data-region="${region}"
+         onmouseenter="showTT(event,'${region}',${v.submitted},${v.total-v.submitted},${v.total},${pct})"
+         onmousemove="moveTT(event)" onmouseleave="hideTT()"
+         onclick="selectRegion('${region}')" style="cursor:pointer">
+        <polygon points="${pts}"
+          fill="${fillColorDark}" stroke="${isSelected?'#38bdf8':'#243348'}"
+          stroke-width="${isSelected?2:0.8}"
+          opacity="${isSelected?1:0.85}"
+          style="transition:all 0.2s"/>
+        <!-- Hover overlay -->
+        <polygon points="${pts}" fill="${fillColor}" opacity="0.25"
+          class="hover-overlay" style="transition:opacity 0.15s"/>
+        ${region==='Dar es Salaam' ? '' : `
+        <text x="${lx}" y="${ly-4}" font-family="DM Sans" font-size="8" font-weight="500"
+          fill="#e2e8f0" text-anchor="middle" pointer-events="none" opacity="0.9"
+          style="text-shadow:0 1px 2px rgba(0,0,0,0.8)">${region}</text>
+        <text x="${lx}" y="${ly+7}" font-family="DM Mono" font-size="8" font-weight="500"
+          fill="${fillColor}" text-anchor="middle" pointer-events="none"
+          style="text-shadow:0 1px 3px rgba(0,0,0,0.9)">${v.submitted}/${v.total}</text>
+        `}
+      </g>`;
+  });
+
+  // Dar es Salaam special small label
+  const dsCoords = REGION_POLYS["Dar es Salaam"];
+  const dsx = dsCoords.reduce((s,c)=>s+project(c[0],c[1])[0],0)/dsCoords.length;
+  const dsy = dsCoords.reduce((s,c)=>s+project(c[0],c[1])[1],0)/dsCoords.length;
+  const dsv = sm["Dar es Salaam"] || {total:0,submitted:0};
+  html += `<text x="${dsx+18}" y="${dsy}" font-family="DM Sans" font-size="7.5" fill="#e2e8f0" text-anchor="start" pointer-events="none">DSM ${dsv.submitted}/${dsv.total}</text>
+  <line x1="${dsx+5}" y1="${dsy-1}" x2="${dsx+16}" y2="${dsy-1}" stroke="#94a3b8" stroke-width="0.7"/>`;
+
+  // Map title
+  html += `<text x="260" y="16" font-family="DM Sans" font-size="10" font-weight="600" fill="#94a3b8" text-anchor="middle">TANZANIA MAINLAND — ${QUARTERS[activeQ].label}</text>`;
+
+  // Legend bottom
+  html += `
+    <g transform="translate(8,608)">
+      <rect width="240" height="46" rx="6" fill="rgba(12,21,37,0.88)" stroke="#243348" stroke-width="0.5"/>
+      <text x="10" y="13" font-family="DM Sans" font-size="8.5" font-weight="600" fill="#7a9bb5" letter-spacing="0.06em">LEGEND</text>
+      <circle cx="18" cy="25" r="5" fill="#166534"/><text x="28" y="29" font-family="DM Sans" font-size="8.5" fill="#d1fae5">Fully submitted (100%)</text>
+      <circle cx="18" cy="38" r="5" fill="#92400e"/><text x="28" y="42" font-family="DM Sans" font-size="8.5" fill="#fde68a">Partial (1–99%)</text>
+      <circle cx="118" cy="25" r="5" fill="#7f1d1d"/><text x="128" y="29" font-family="DM Sans" font-size="8.5" fill="#fecaca">Not submitted (0%)</text>
+      <rect x="113" y="33" width="10" height="8" rx="1" fill="#1e3a5f" stroke="#1e6494" stroke-width="0.5"/><text x="128" y="42" font-family="DM Sans" font-size="8.5" fill="#7dd3fc">Water body</text>
+    </g>`;
+
+  svg.innerHTML = html;
+}
+
+// ===================== TOOLTIP =====================
+function showTT(e,region,sub,notSub,tot,pct){
+  document.getElementById('ttName').textContent = '📍 '+region;
+  document.getElementById('ttSub').textContent = sub+' councils';
+  document.getElementById('ttNot').textContent = notSub+' councils';
+  document.getElementById('ttTot').textContent = tot+' councils';
+  document.getElementById('ttRate').textContent = pct+'%  ('+sub+'/'+tot+')';
+  const tt = document.getElementById('tooltip');
+  tt.style.display='block';
+  moveTT(e);
+}
+function moveTT(e){
+  const tt = document.getElementById('tooltip');
+  const x = e.clientX+14, y = e.clientY-10;
+  tt.style.left = Math.min(x, window.innerWidth-200)+'px';
+  tt.style.top = y+'px';
+}
+function hideTT(){document.getElementById('tooltip').style.display='none';}
+
+// ===================== QUARTER SELECTOR =====================
+function setQuarter(q) {
+  activeQ = q;
+  document.querySelectorAll('.qtab').forEach(t=>{
+    t.className = 'qtab';
+    if(t.dataset.q===q) t.classList.add('active-'+q.toLowerCase());
+  });
+  render(QUARTER_DATA[q]);
+}
+
+// ===================== KOBO CONFIG TOGGLE =====================
+function toggleKoboConfig(){
+  const el = document.getElementById('koboConfig');
+  el.style.display = el.style.display==='none' ? 'block' : 'none';
+}
+
+// ===================== KOBO FETCH =====================
+async function fetchKobo() {
+  const token = document.getElementById('koboToken').value.trim();
+  const asset = document.getElementById('koboAsset').value.trim();
+  const server = document.getElementById('koboServer').value.trim().replace(/\/$/, '');
+  const badge = document.getElementById('koboBadge');
+
+  if (!token || !asset) {
+    badge.className='kobo-badge kobo-err';
+    badge.textContent='⚠ Token/Asset missing';
+    return;
+  }
+
+  badge.className='kobo-badge kobo-loading';
+  badge.innerHTML='<span class="spin">⟳</span> Fetching…';
+
+  const url = `${server}/api/v2/assets/${asset}/data/?format=json&limit=5000`;
+
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'Authorization': `Token ${token}`,
+        'Accept': 'application/json'
+      }
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    const json = await res.json();
+    const results = json.results || [];
+
+    if (results.length === 0) {
+      badge.className='kobo-badge kobo-err';
+      badge.textContent='⚠ No submissions found';
+      return;
+    }
+
+    // Map KoboToolbox submissions to council data format
+    // Find field names dynamically
+    const sample = results[0];
+    const keys = Object.keys(sample);
+    const regionKey = keys.find(k=>k.toLowerCase().includes('region')) || KOBO_FIELD_REGION;
+    const statusKey = keys.find(k=>k.toLowerCase().includes('status')||k.toLowerCase().includes('submitted')) || KOBO_FIELD_STATUS;
+    const councilKey = keys.find(k=>k.toLowerCase().includes('council')||k.toLowerCase().includes('district')) || 'council';
+
+    // Build updated data: start from base, override matching records
+    const updated = [...BASE_DATA];
+    results.forEach(row => {
+      const koboRegion = String(row[regionKey]||'').trim();
+      const koboCouncil = String(row[councilKey]||'').trim();
+      const rawStatus = String(row[statusKey]||'').toUpperCase().trim();
+      const koboStatus = rawStatus.includes('NOT')||rawStatus==='0'||rawStatus==='NO' ? 'NOT SUBMITTED' : 'SUBMITTED';
+
+      const idx = updated.findIndex(d =>
+        d.region.toLowerCase()===koboRegion.toLowerCase() ||
+        d.council.toLowerCase()===koboCouncil.toLowerCase()
+      );
+      if (idx !== -1) updated[idx] = {...updated[idx], status: koboStatus};
+    });
+
+    QUARTER_DATA[activeQ] = updated;
+    render(updated);
+
+    badge.className='kobo-badge kobo-ok';
+    badge.textContent=`✅ ${results.length} records synced`;
+    document.getElementById('koboLastSync').textContent=
+      'Last: '+new Date().toLocaleTimeString('en-TZ',{timeZone:'Africa/Dar_es_Salaam'});
+
+  } catch(err) {
+    badge.className='kobo-badge kobo-err';
+    badge.textContent='✕ '+err.message.substring(0,40);
+    console.error('KoboToolbox fetch error:', err);
+
+    // If CORS error, show guidance
+    if(err.message.includes('fetch')||err.name==='TypeError'){
+      badge.textContent='⚠ CORS error — enable API access in KoboToolbox project settings';
+    }
+  }
+}
+
+// ===================== FILE UPLOAD =====================
+function handleFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+      const sheetName = wb.SheetNames.find(n=>n.toLowerCase().includes('council')) || wb.SheetNames[0];
+      const raw = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], {header:1, defval:''});
+      let hRow = -1;
+      for(let i=0;i<raw.length;i++){
+        const r=raw[i].map(c=>String(c).toLowerCase());
+        if(r.includes('region')&&r.includes('status')){hRow=i;break;}
+      }
+      if(hRow===-1){alert('Cannot find header row');return;}
+      const h=raw[hRow].map(c=>String(c).toLowerCase().trim());
+      const rI=h.indexOf('region'),cI=h.indexOf('council'),tI=h.indexOf('type'),sI=h.indexOf('status');
+      const newData=[];
+      for(let i=hRow+1;i<raw.length;i++){
+        const row=raw[i];
+        const region=String(row[rI]||'').trim();
+        const council=String(row[cI]||'').trim();
+        const type=String(row[tI]||'').trim();
+        const status=String(row[sI]||'').trim().toUpperCase();
+        if(region&&council&&(status==='SUBMITTED'||status==='NOT SUBMITTED'))
+          newData.push({region,council,type,status});
+      }
+      if(newData.length===0){alert('No valid rows found');return;}
+      QUARTER_DATA[activeQ]=newData;
+      render(newData);
+      const btn=document.querySelector('.btn-outline');
+      const o=btn.textContent;
+      btn.textContent=`✅ ${newData.length} rows`;
+      setTimeout(()=>btn.textContent=o,2500);
+    } catch(err){alert('Error: '+err.message);}
+  };
+  reader.readAsArrayBuffer(file);
+  event.target.value='';
+}
+
+// ===================== AUTO-SYNC EVERY 5 MINUTES =====================
+setInterval(()=>{
+  const token=document.getElementById('koboToken').value.trim();
+  if(token&&token.length>20) fetchKobo();
+},5*60*1000);
+
+// ===================== INIT =====================
+render(QUARTER_DATA.Q1);
+</script>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+'use strict';
+/*
+  ARCHITECTURE NOTE
+  ─────────────────
+  This dashboard is a local HTML file. localStorage is per-browser,
+  so we use EmailJS to bridge between users on different computers:
+
+  1. New user registers → saved locally + email sent to admin with
+     an embedded APPROVE / REJECT link.
+  2. Admin clicks link → dashboard opens → detects URL token →
+     stores the user record in admin's localStorage → Admin Panel
+     shows the request → admin clicks Approve.
+  3. Approval email sent to the new user automatically.
+
+  Configure EmailJS in ⚙ Settings → Email Notifications below.
+*/
+
+// ══════════ RUNTIME CONFIG (loaded from localStorage or defaults) ══════════
+const ADMIN_EMAIL      = 'ihuyamichael@tecden.or.tz';
+const ADMIN_DEFAULT_PW = 'Admin@2025';
+
+function getCfg() {
+  try { return JSON.parse(localStorage.getItem('tam_ejscfg') || '{}'); } catch(e) { return {}; }
+}
+function saveCfg(c) { localStorage.setItem('tam_ejscfg', JSON.stringify(c)); }
+
+// ══════════ STORAGE ══════════
+const DB = {
+  getUsers   : () => { try { return JSON.parse(localStorage.getItem('tam_users') || '[]'); } catch(e) { return []; } },
+  saveUsers  : (u) => localStorage.setItem('tam_users', JSON.stringify(u)),
+  getSession : () => { try { return JSON.parse(localStorage.getItem('tam_sess')  || 'null'); } catch(e) { return null; } },
+  saveSession: (s) => localStorage.setItem('tam_sess', JSON.stringify(s)),
+  clearSession:()  => localStorage.removeItem('tam_sess'),
+};
+
+// ══════════ SHA-256 HASH ══════════
+async function hashPw(pw) {
+  const enc = new TextEncoder().encode(pw + ':tam_salt_2025');
+  const buf = await crypto.subtle.digest('SHA-256', enc);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+// ══════════ BASE64 encode/decode for URL tokens ══════════
+function b64enc(obj) { return btoa(unescape(encodeURIComponent(JSON.stringify(obj)))); }
+function b64dec(s)   { try { return JSON.parse(decodeURIComponent(escape(atob(s)))); } catch(e) { return null; } }
+
+// ══════════ BOOTSTRAP ADMIN ══════════
+async function bootstrapAdmin() {
+  const hash  = await hashPw(ADMIN_DEFAULT_PW);
+  const users = DB.getUsers();
+  const idx   = users.findIndex(u => u.id === 'admin-001');
+  if (idx === -1) {
+    users.unshift({
+      id:'admin-001', firstName:'Michael', lastName:'Ihuya',
+      email:ADMIN_EMAIL, org:'TECDEN – System Administrator',
+      role:'admin', status:'approved', passwordHash:hash,
+      createdAt:new Date().toISOString(), approvedAt:new Date().toISOString(),
+    });
+    DB.saveUsers(users);
+  } else if (!users[idx].passwordHash) {
+    users[idx].passwordHash = hash;
+    DB.saveUsers(users);
+  }
+}
+
+// ══════════ HANDLE ACTIVATION LINK FROM EMAIL ══════════
+// New user clicks their activation link → file.html?action=activate&tok=BASE64
+// This auto-approves their account in the current browser's localStorage.
+function handleURLAction() {
+  const params = new URLSearchParams(window.location.search);
+  const action = params.get('action');
+  const tok    = params.get('tok');
+  if (!action || !tok) return false;
+
+  const data = b64dec(tok);
+  if (!data || !data.id || !data.email) return false;
+
+  const users  = DB.getUsers();
+  const exists = users.findIndex(u => u.id === data.id || u.email === data.email);
+
+  if (action === 'activate') {
+    if (exists === -1) {
+      // Brand new browser — add full user record as approved
+      data.status     = 'approved';
+      data.approvedAt = new Date().toISOString();
+      users.push(data);
+    } else {
+      users[exists].status     = 'approved';
+      users[exists].approvedAt = new Date().toISOString();
+    }
+    DB.saveUsers(users);
+    sessionStorage.setItem('tam_action_done', 'activated:' + (data.firstName||'') + ':' + (data.email||''));
+  }
+
+  // Clean URL so link can't be reused accidentally from the address bar
+  window.history.replaceState({}, '', window.location.pathname);
+  return true;
+}
+
+// ══════════ INIT ══════════
+async function authInit() {
+  await bootstrapAdmin();
+  handleURLAction();       // process any email action links
+
+  const sess = DB.getSession();
+  if (sess && sess.userId) {
+    const user = DB.getUsers().find(u => u.id === sess.userId && u.status === 'approved');
+    if (user) { loginSuccess(user, false); return; }
+    DB.clearSession();
+  }
+  const overlay = document.getElementById('authOverlay');
+  if (overlay) overlay.style.display = 'flex';
+}
+authInit();
+
+// ══════════ PANEL SWITCHING ══════════
+function switchTab(name) {
+  ['panelLogin','panelRegister','panelPending'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('show');
+  });
+  const panel = document.getElementById('panel' + name[0].toUpperCase() + name.slice(1));
+  if (panel) panel.classList.add('show');
+  ['tabLogin','tabRegister'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('active');
+  });
+  const tab = document.getElementById('tab' + name[0].toUpperCase() + name.slice(1));
+  if (tab) tab.classList.add('active');
+}
+
+// ══════════ MESSAGES ══════════
+function showMsg(elId, text, type) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.textContent   = text;
+  el.className     = 'auth-msg ' + type;
+  el.style.display = 'block';
+  if (type === 'ok') setTimeout(() => { el.style.display = 'none'; }, 6000);
+}
+
+// ══════════ PASSWORD ══════════
+function togglePw(inputId, btn) {
+  const inp = document.getElementById(inputId);
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+  btn.textContent = inp.type === 'password' ? '👁' : '🙈';
+}
+function checkStrength(pw) {
+  const bar = document.getElementById('strengthBar');
+  if (!bar) return;
+  let s = 0;
+  if (pw.length >= 8) s++; if (/[A-Z]/.test(pw)) s++;
+  if (/[0-9]/.test(pw)) s++; if (/[^A-Za-z0-9]/.test(pw)) s++;
+  bar.style.width      = pw.length ? (['20%','45%','70%','100%'][s-1]||'10%') : '0';
+  bar.style.background = pw.length ? (['#ef4444','#f97316','#f59e0b','#22c55e'][s-1]||'#ef4444') : '#1e3a5c';
+}
+
+// ══════════ LOGIN ══════════
+async function doLogin() {
+  const emailVal = (document.getElementById('loginEmail').value||'').trim().toLowerCase();
+  const pwVal    = (document.getElementById('loginPw').value||'');
+  const btn      = document.getElementById('loginBtn');
+  if (!emailVal||!pwVal) { showMsg('loginMsg','Please enter your email and password.','err'); return; }
+  btn.disabled=true; btn.textContent='Verifying…';
+  try {
+    const hash  = await hashPw(pwVal);
+    const users = DB.getUsers();
+    const user  = users.find(u => u.email === emailVal);
+    if (!user)                      { showMsg('loginMsg','No account found with that email address.','err'); return; }
+    if (user.passwordHash !== hash) { showMsg('loginMsg','Incorrect password. Please try again.','err'); return; }
+    if (user.status==='pending')    { showMsg('loginMsg','Your account is awaiting admin approval. Please check back later.','info'); return; }
+    if (user.status==='rejected')   { showMsg('loginMsg','Access was not granted. Contact '+ADMIN_EMAIL+' for help.','err'); return; }
+    loginSuccess(user, true);
+  } catch(err) {
+    showMsg('loginMsg','An error occurred. Please try again.','err');
+  } finally {
+    btn.disabled=false; btn.textContent='Sign In →';
+  }
+}
+
+// ══════════ LOGIN SUCCESS ══════════
+function loginSuccess(user, doSave) {
+  if (doSave) DB.saveSession({ userId:user.id, loginAt:new Date().toISOString() });
+  const overlay = document.getElementById('authOverlay');
+  if (overlay) overlay.style.display = 'none';
+
+  const ini = ((user.firstName||'?')[0]+(user.lastName||'?')[0]).toUpperCase();
+  const el  = id => document.getElementById(id);
+  if(el('ucAvatar'))  el('ucAvatar').textContent  = ini;
+  if(el('ucName'))    el('ucName').textContent    = user.firstName+' '+user.lastName;
+  if(el('ucRole'))    el('ucRole').textContent    = user.role==='admin' ? 'Administrator' : (user.org||'').split(',')[0]||'Viewer';
+  if(el('userChip'))  el('userChip').style.display  = 'flex';
+  if(el('logoutBtn')) el('logoutBtn').style.display = 'inline-flex';
+  if(el('adminBtn'))  el('adminBtn').style.display  = user.role==='admin' ? 'inline-flex' : 'none';
+  if(user.role==='admin') updateEjsStatus();
+
+  // Check if we just processed an activation link from email
+  const done = sessionStorage.getItem('tam_action_done');
+  if (done) {
+    sessionStorage.removeItem('tam_action_done');
+    const parts = done.split(':');
+    const act   = parts[0];
+    if (act === 'activated') {
+      // User just activated via their email link — show welcome message
+      setTimeout(() => showAdminToast('🎉 Account activated! You are now signed in.', 'ok'), 400);
+    }
+  }
+
+  if (user.role === 'admin') {
+    const pending = DB.getUsers().filter(u => u.status === 'pending');
+    if (pending.length > 0 && doSave) setTimeout(() => openAdmin(), 700);
+  }
+}
+
+// ══════════ REGISTER ══════════
+async function doRegister() {
+  const g    = id => (document.getElementById(id)||{value:''}).value||'';
+  const first= g('regFirst').trim(), last=g('regLast').trim();
+  const email= g('regEmail').trim().toLowerCase(), org=g('regOrg').trim();
+  const pw   = g('regPw'), pw2=g('regPw2');
+  const btn  = document.getElementById('registerBtn');
+
+  if (!first||!last||!email||!org||!pw||!pw2)  { showMsg('registerMsg','Please fill in all fields.','err'); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showMsg('registerMsg','Please enter a valid email address.','err'); return; }
+  if (pw.length<8)  { showMsg('registerMsg','Password must be at least 8 characters.','err'); return; }
+  if (pw!==pw2)     { showMsg('registerMsg','Passwords do not match.','err'); return; }
+
+  const users = DB.getUsers();
+  if (users.find(u=>u.email===email)) { showMsg('registerMsg','An account with this email already exists.','err'); return; }
+
+  btn.disabled=true; btn.textContent='Submitting…';
+  try {
+    const hash    = await hashPw(pw);
+    const newUser = {
+      id:'usr-'+Date.now(), firstName:first, lastName:last,
+      email, org, role:'viewer', status:'pending',
+      passwordHash:hash, createdAt:new Date().toISOString(),
+    };
+    users.push(newUser);
+    DB.saveUsers(users);
+
+    // Send activation email directly to the new user
+    const emailResult = await sendActivationEmail(newUser);
+
+    // Show result to user
+    document.querySelectorAll('.auth-tab').forEach(t => t.style.display='none');
+    const pp = document.getElementById('panelPending');
+    const emailNote = emailResult.ok
+      ? `<span style="color:#4ade80">✅ An activation link has been sent to <strong>${email}</strong>. Click it to activate your account.</span>`
+      : `<span style="color:#fbbf24">⚠ Activation email could not be sent. Please contact <strong>${ADMIN_EMAIL}</strong> to request manual activation.</span>`;
+    if (pp) pp.querySelector('.pending-msg').innerHTML = `
+      <div class="pending-icon">📩</div>
+      <h3>Check Your Email!</h3>
+      <p>Welcome, <strong style="color:#f0f6ff">${first}</strong>.<br><br>
+      ${emailNote}<br><br>
+      Once you click the activation link, come back here and sign in with:<br>
+      <strong style="color:#38bdf8">${email}</strong></p>
+      <button class="auth-btn auth-btn-primary" style="margin-top:20px;max-width:200px;margin-left:auto;margin-right:auto"
+        onclick="resetToLogin()">← Back to Sign In</button>`;
+    ['panelLogin','panelRegister'].forEach(id=>{ const e=document.getElementById(id); if(e) e.classList.remove('show'); });
+    if (pp) pp.classList.add('show');
+
+  } catch(err) {
+    showMsg('registerMsg','Registration failed: '+err.message,'err');
+  } finally {
+    btn.disabled=false; btn.textContent='Submit Access Request →';
+  }
+}
+
+function resetToLogin() {
+  document.querySelectorAll('.auth-tab').forEach(t => t.style.display='');
+  switchTab('login');
+}
+
+function copyTemplate() {
+  const el = document.getElementById('templateBody');
+  if (!el) return;
+  const text = el.textContent || el.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    showEjsMsg('✅ Template HTML copied! Paste it into your EmailJS template body.', 'ok');
+  }).catch(() => {
+    // Fallback: select the text
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+    showEjsMsg('✅ Template selected — press Ctrl+C (or Cmd+C) to copy.', 'ok');
+  });
+}
+
+// ══════════ EMAILJS — SINGLE ACTIVATION LINK EMAIL ══════════
+// NEW FLOW: One template only. When a user registers, they receive an
+// activation link directly in their own email. Clicking it approves
+// their account instantly — no approve/reject emails to admin needed.
+
+async function sendActivationEmail(user) {
+  const cfg = getCfg();
+  if (!cfg.publicKey || !cfg.serviceId || !cfg.tmplActivation) {
+    console.warn('[EmailJS] Not configured or template ID missing.');
+    return { ok:false, reason:'not_configured' };
+  }
+  if (typeof emailjs === 'undefined') {
+    return { ok:false, reason:'library_missing' };
+  }
+  try {
+    emailjs.init({ publicKey: cfg.publicKey });
+
+    const baseUrl        = window.location.href.split('?')[0];
+    const activateToken  = b64enc({ id:user.id, email:user.email, firstName:user.firstName, lastName:user.lastName, org:user.org, passwordHash:user.passwordHash, createdAt:user.createdAt });
+    const activationLink = baseUrl + '?action=activate&tok=' + activateToken;
+
+    const params = {
+      to_email        : user.email,
+      to_name         : user.firstName,
+      from_name       : 'TAMISEMI NMECD Dashboard',
+      reply_to        : ADMIN_EMAIL,
+      subject         : 'Activate Your TAMISEMI Dashboard Account',
+      user_name       : user.firstName + ' ' + user.lastName,
+      user_email      : user.email,
+      user_org        : user.org || '—',
+      activation_link : activationLink,
+      admin_email     : ADMIN_EMAIL,
+      // Plain-text fallback (used if template uses {{message}})
+      message         : 'Hello ' + user.firstName + ',\n\nYour account for the TAMISEMI NMECD Dashboard has been received.\n\nCopy and open this link in your browser to activate your account:\n\n' + activationLink + '\n\nTAMISEMI NMECD Programme',
+      // HTML version with a clickable button (used if template uses {{html_message}})
+      html_message    :
+        '<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px;background:#f4f4f4">' +
+        '<div style="background:#16a34a;padding:18px 24px;border-radius:8px 8px 0 0">' +
+        '<h2 style="color:white;margin:0;font-size:18px">TAMISEMI NMECD Dashboard</h2>' +
+        '<p style="color:#dcfce7;margin:6px 0 0;font-size:12px">Early Childhood Development &middot; Tanzania Mainland</p>' +
+        '</div>' +
+        '<div style="background:white;padding:28px;border-radius:0 0 8px 8px;border:1px solid #e5e7eb">' +
+        '<p style="font-size:15px;color:#111827;margin-top:0">Dear <strong>' + user.firstName + '</strong>,</p>' +
+        '<p style="color:#374151;line-height:1.7">Your account request has been received. Click the button below to activate your account and sign in.</p>' +
+        '<div style="text-align:center;margin:32px 0">' +
+        '<a href="' + activationLink + '" style="background:#16a34a;color:white;padding:15px 40px;border-radius:8px;text-decoration:none;font-size:16px;font-weight:700;display:inline-block;letter-spacing:0.3px">' +
+        '&#9989;&nbsp; Click Here to Activate Account' +
+        '</a>' +
+        '</div>' +
+        '<p style="color:#6b7280;font-size:12px;line-height:1.8;background:#f9fafb;padding:12px;border-radius:6px">' +
+        'After activating, sign in with:<br>' +
+        '<strong>Email:</strong> ' + user.email + '<br>' +
+        '<strong>Password:</strong> the password you set when registering' +
+        '</p>' +
+        '<hr style="border:none;border-top:1px solid #f3f4f6;margin:20px 0">' +
+        '<p style="color:#9ca3af;font-size:11px;margin-bottom:0">If you did not request this, ignore this email.</p>' +
+        '</div></div>',
+    };
+
+    console.log('[EmailJS] Sending activation email →', user.email);
+    const resp = await emailjs.send(cfg.serviceId, cfg.tmplActivation, params, { publicKey: cfg.publicKey });
+    console.log('[EmailJS] Response:', resp);
+    return { ok:true, detail:'Status ' + resp.status };
+
+  } catch(err) {
+    const status = err.status || '';
+    const text   = err.text || err.message || JSON.stringify(err);
+    console.error('[EmailJS] Error:', err);
+    const hints = {
+      400:'Wrong Template ID — check field ③ in Email Setup.',
+      401:'Wrong Public Key — check field ① in Email Setup.',
+      403:'Wrong Service ID or service paused — check field ② in Email Setup.',
+      404:'Service or Template not found — IDs must match exactly what is in your EmailJS dashboard.',
+      412:'The "To Email" field in your EmailJS template must be set to {{to_email}}',
+      422:'Template variable mismatch.',
+      429:'Rate limit hit — wait a minute and try again.',
+    };
+    return { ok:false, reason:'send_failed', detail:(status?'HTTP '+status+': ':'')+text+'\n\nFix: '+(hints[status]||'Check all IDs in Email Setup.') };
+  }
+}
+
+// ══════════ EMAILJS CONFIG MODAL ══════════
+function saveEjsConfig() {
+  const cfg = {
+    publicKey      : (document.getElementById('ejsPublicKey').value       ||'').trim(),
+    serviceId      : (document.getElementById('ejsServiceId').value       ||'').trim(),
+    tmplActivation : (document.getElementById('ejsTmplActivation').value  ||'').trim(),
+  };
+  saveCfg(cfg);
+  updateEjsStatus();
+  updateEjsStatusBox();
+  showEjsMsg('✅ Configuration saved! Click "Send Test Email" to verify it works.', 'ok');
+}
+function updateEjsStatus() {
+  const cfg = getCfg();
+  const ok  = !!(cfg.publicKey && cfg.serviceId && cfg.tmplActivation);
+  const statusEl = document.getElementById('ejsStatusBadge');
+  if (statusEl) {
+    statusEl.textContent = ok ? '✅ Configured' : '⚠ Not configured';
+    statusEl.className   = ok ? 'kobo-badge kobo-ok' : 'kobo-badge kobo-err';
+  }
+}
+async function testEmailJs() {
+  const btn = document.getElementById('ejsTestBtn');
+  btn.disabled = true; btn.textContent = '⟳ Sending…';
+
+  const cfg = getCfg();
+  if (!cfg.publicKey || !cfg.serviceId || !cfg.tmplActivation) {
+    showEjsMsg('⚠ Please fill in and save all fields first, then test.', 'err');
+    btn.disabled = false; btn.textContent = '📨 Send Test Email to ihuyamichael@tecden.or.tz';
+    return;
+  }
+
+  // Send a test activation email to the ADMIN so they can verify it works
+  const testUser = {
+    id          : 'test-001',
+    firstName   : 'Test',
+    lastName    : 'User',
+    email       : ADMIN_EMAIL,   // send test to admin's own inbox
+    org         : 'Test Organization',
+    passwordHash: '',
+    createdAt   : new Date().toISOString(),
+  };
+  const result = await sendActivationEmail(testUser);
+
+  if (result.ok) {
+    showEjsMsg('✅ Test activation email sent to ' + ADMIN_EMAIL + '!\nCheck your inbox (and spam folder).\nThe activation link in the test email will not work — that is normal for a test.', 'ok');
+  } else {
+    showEjsMsg(
+      '❌ Email failed.\n\nReason: ' + (result.reason||'unknown') +
+      '\nDetail: ' + (result.detail||'none') +
+      '\n\nAlso open browser Console (F12 → Console) for the full technical error.',
+      'err'
+    );
+  }
+  btn.disabled = false; btn.textContent = '📨 Send Test Email to ihuyamichael@tecden.or.tz';
+}
+function showEjsMsg(text, type) {
+  const el = document.getElementById('ejsMsg');
+  if (!el) return;
+  // Convert newlines to <br> for readability
+  el.innerHTML = text.replace(/\n/g, '<br>');
+  el.className = 'auth-msg ' + type;
+  el.style.display = 'block';
+  el.style.whiteSpace = 'pre-wrap';
+  el.style.textAlign = 'left';
+  el.style.lineHeight = '1.7';
+  if (type === 'ok') setTimeout(() => { el.style.display = 'none'; }, 8000);
+}
+
+// ══════════ LOGOUT ══════════
+function doLogout() {
+  DB.clearSession();
+  const el=id=>document.getElementById(id);
+  ['userChip','logoutBtn','adminBtn'].forEach(id=>{ const e=el(id); if(e) e.style.display='none'; });
+  ['loginEmail','loginPw'].forEach(id=>{ const e=el(id); if(e) e.value=''; });
+  const m=el('loginMsg'); if(m) m.style.display='none';
+  document.querySelectorAll('.auth-tab').forEach(t=>t.style.display='');
+  switchTab('login');
+  const ov=el('authOverlay'); if(ov) ov.style.display='flex';
+}
+function showUserMenu() {
+  const sess=DB.getSession(); if(!sess) return;
+  const user=DB.getUsers().find(u=>u.id===sess.userId);
+  if(user&&user.role==='admin') openAdmin();
+}
+
+// ══════════ ADMIN TAB SWITCHING ══════════
+function switchAdminTab(name) {
+  ['users','email','guide'].forEach(t => {
+    const tab   = document.getElementById('atab-'+t);
+    const panel = document.getElementById('apanel-'+t);
+    if (tab)   tab.classList.remove('active');
+    if (panel) panel.style.display = 'none';
+  });
+  const activeTab   = document.getElementById('atab-'+name);
+  const activePanel = document.getElementById('apanel-'+name);
+  if (activeTab)   activeTab.classList.add('active');
+  if (activePanel) activePanel.style.display = 'block';
+
+  // When switching to email tab, load current config into fields
+  if (name === 'email') loadEjsFieldsFromConfig();
+}
+
+function loadEjsFieldsFromConfig() {
+  const cfg = getCfg();
+  const set = (id, val) => { const el = document.getElementById(id); if(el) el.value = val||''; };
+  set('ejsPublicKey',       cfg.publicKey);
+  set('ejsServiceId',       cfg.serviceId);
+  set('ejsTmplActivation',  cfg.tmplActivation);
+  updateEjsStatusBox();
+}
+
+function updateEjsStatusBox() {
+  const cfg = getCfg();
+  const box = document.getElementById('ejsStatusBox');
+  if (!box) return;
+  const has = !!(cfg.publicKey && cfg.serviceId && cfg.tmplActivation);
+  if (has) {
+    box.style.borderColor = '#16a34a';
+    box.innerHTML = `
+      <div style="color:#4ade80;font-weight:600;margin-bottom:6px">✅ EmailJS is configured and active</div>
+      <div>Service ID: <code style="color:#38bdf8">${cfg.serviceId}</code></div>
+      <div>Activation template: <code style="color:#38bdf8">${cfg.tmplActivation}</code></div>
+      <div style="margin-top:8px;color:#7a9bb5">Click <strong style="color:#f0f6ff">📨 Send Test Email</strong> below to verify it works.</div>`;
+  } else {
+    box.style.borderColor = '#7f1d1d';
+    const missing = [];
+    if (!cfg.publicKey)       missing.push('Public Key');
+    if (!cfg.serviceId)       missing.push('Service ID');
+    if (!cfg.tmplActivation)  missing.push('Template ID');
+    box.innerHTML = `
+      <div style="color:#f87171;font-weight:600;margin-bottom:6px">⚠ Email notifications are not active</div>
+      <div style="margin-bottom:8px">Missing: <strong style="color:#fbbf24">${missing.join(', ')}</strong></div>
+      <div>Fill in the fields below and click <strong style="color:#f0f6ff">💾 Save Configuration</strong>.<br>
+      Don't have an account yet? Go to <a href="https://www.emailjs.com" target="_blank" style="color:#38bdf8">emailjs.com</a> — it's free.</div>`;
+  }
+}
+
+// ══════════ ADMIN PANEL OPEN/CLOSE ══════════
+function openAdmin() {
+  renderAdminPanel();
+  switchAdminTab('users');
+  const panel=document.getElementById('adminPanel');
+  if(panel) panel.classList.add('show');
+}
+function closeAdmin() {
+  const panel=document.getElementById('adminPanel');
+  if(panel) panel.classList.remove('show');
+}
+function showAdminToast(msg, type) {
+  const el=document.getElementById('adminToast');
+  if(!el) return;
+  el.textContent=msg; el.className='admin-toast '+type; el.style.display='block';
+  setTimeout(()=>{ el.style.display='none'; }, 7000);
+}
+
+function renderAdminPanel() {
+  const users    = DB.getUsers();
+  const pending  = users.filter(u=>u.status==='pending');
+  const approved = users.filter(u=>u.status==='approved');
+  const rejected = users.filter(u=>u.status==='rejected');
+
+  // Badge on button
+  const adminBtn=document.getElementById('adminBtn');
+  if(adminBtn) adminBtn.innerHTML = pending.length>0
+    ? '👑 Admin <span style="background:#dc2626;color:white;border-radius:10px;padding:1px 6px;font-size:10px">'+pending.length+'</span>'
+    : '👑 Admin';
+
+  // Stats row in panel
+  const statEl=document.getElementById('adminStats');
+  if(statEl) statEl.innerHTML=`
+    <div class="admin-stat"><span class="admin-stat-val" style="color:#fbbf24">${pending.length}</span><span class="admin-stat-lbl">Pending</span></div>
+    <div class="admin-stat"><span class="admin-stat-val" style="color:#4ade80">${approved.length}</span><span class="admin-stat-lbl">Approved</span></div>
+    <div class="admin-stat"><span class="admin-stat-val" style="color:#f87171">${rejected.length}</span><span class="admin-stat-lbl">Rejected</span></div>
+    <div class="admin-stat"><span class="admin-stat-val" style="color:#38bdf8">${users.length}</span><span class="admin-stat-lbl">Total</span></div>`;
+
+  function card(u) {
+    const ini = ((u.firstName||'?')[0]+(u.lastName||'?')[0]).toUpperCase();
+    const iA  = u.role==='admin';
+    const sc  = iA ? 'st-admin' : ({pending:'st-pending',approved:'st-approved',rejected:'st-rejected'}[u.status]||'st-pending');
+    const sl  = iA ? '👑 Admin' : ({pending:'⏳ Pending',approved:'✅ Approved',rejected:'✕ Rejected'}[u.status]||u.status);
+    const dt  = new Date(u.createdAt).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+    return `<div class="user-row" id="urow-${u.id}">
+      <div class="user-avatar">${ini}</div>
+      <div class="user-info">
+        <div class="user-name">${u.firstName} ${u.lastName}</div>
+        <div class="user-email">${u.email}</div>
+        <div class="user-meta">${u.org||'—'} &nbsp;·&nbsp; ${dt}</div>
+      </div>
+      <span class="user-status ${sc}">${sl}</span>
+      <div class="user-actions">
+        ${u.status==='pending'  ? `<button class="ua-btn ua-approve" onclick="approveUser('${u.id}')">✓ Approve</button>
+          <button class="ua-btn ua-reject" onclick="rejectUser('${u.id}')">✕ Reject</button>` : ''}
+        ${u.status==='rejected' ? `<button class="ua-btn ua-approve" onclick="approveUser('${u.id}')">↩ Re-approve</button>` : ''}
+        ${!iA ? `<button class="ua-btn ua-delete" onclick="deleteUser('${u.id}')">🗑</button>` : ''}
+      </div></div>`;
+  }
+
+  const set=(id,arr,empty)=>{ const el=document.getElementById(id); if(el) el.innerHTML=arr.length?arr.map(card).join(''):`<div class="empty-state">${empty}</div>`; };
+  set('pendingUsers',  pending,  '✅ No pending requests');
+  set('approvedUsers', approved, 'No approved users yet');
+  set('rejectedUsers', rejected, 'No rejected users');
+}
+
+function approveUser(id) {
+  const users=DB.getUsers();
+  const idx=users.findIndex(u=>u.id===id);
+  if(idx===-1) return;
+  users[idx].status='approved';
+  users[idx].approvedAt=new Date().toISOString();
+  DB.saveUsers(users);
+  const row=document.getElementById('urow-'+id);
+  if(row){ row.style.borderColor='#16a34a'; row.style.background='rgba(22,163,74,0.08)'; }
+  setTimeout(()=>renderAdminPanel(), 700);
+  showAdminToast('✅ '+users[idx].firstName+' '+users[idx].lastName+' has been approved.', 'ok');
+}
+
+function rejectUser(id) {
+  if (!confirm('Reject this access request? The user will be notified.')) return;
+  const users = DB.getUsers();
+  const idx   = users.findIndex(u => u.id === id);
+  if (idx === -1) return;
+  users[idx].status = 'rejected';
+  DB.saveUsers(users);
+  renderAdminPanel();
+  showAdminToast('Request from ' + users[idx].firstName + ' ' + users[idx].lastName + ' has been rejected.', 'warn');
+}
+
+function deleteUser(id) {
+  if (!confirm('Permanently delete this user account? This cannot be undone.')) return;
+  DB.saveUsers(DB.getUsers().filter(u => u.id !== id));
+  renderAdminPanel();
+  showAdminToast('User account deleted.', 'warn');
+}
+
+// Init EmailJS status badge on load
+document.addEventListener('DOMContentLoaded', updateEjsStatus);
+</script>
+</body>
+</html>
